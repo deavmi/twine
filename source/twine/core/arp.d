@@ -181,16 +181,10 @@ public struct ArpEntry
     private string l3Addr;
     private string l2Addr;
 
-    // private StopWatch lifetime;
-    // private Duration expirationTime;
-
     this(string networkAddr, string llAddr)
     {
         this.l3Addr = networkAddr;
         this.l2Addr = llAddr;
-
-        // this.lifetime = StopWatch(AutoStart.yes);
-        // this.expirationTime = expirationTime;
     }
 
     public string networkAddr()
@@ -202,14 +196,4 @@ public struct ArpEntry
     {
         return this.l2Addr;
     }
-
-    // public bool hasExpired()
-    // {
-    //     return this.lifetime.peek() > this.expirationTime;
-    // }
-
-    // public void refresh()
-    // {
-    //     this.lifetime.reset();
-    // }
 }
