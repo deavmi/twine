@@ -562,6 +562,13 @@ unittest
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 
+    scope(exit)
+    {
+        r1.stop();
+        r2.stop();
+        r3.stop();
+    }
+
 
     // todo, please do assertions on routes for the
     // sake of testing
@@ -581,4 +588,14 @@ unittest
         Thread.sleep(dur!("seconds")(2));
         cycleCnt++;
     }
+
+    Route[] r1_routes = r1.getRoutes();
+    Route[] r2_routes = r2.getRoutes();
+    Route[] r3_routes = r3.getRoutes();
+
+    writeln(r1_routes);
+    writeln(r2_routes);
+    writeln(r3_routes);
+
+    // todo, check routes here
 }
