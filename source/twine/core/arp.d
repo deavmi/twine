@@ -350,7 +350,11 @@ unittest
 
     // try resolve address `hostA:l3` over the `dummyLink` link
     ArpEntry resolution = man.resolve("hostA:l3", dummyLink);
-    assert(resolution.llAddr() == mappings[resolution.networkAddr()]);
+    assert(resolution.llAddr() == mappings["hostA:l3"]);
+
+    // try resolve address `hostB:l3` over the `dummyLink` link
+    resolution = man.resolve("hostB:l3", dummyLink);
+    assert(resolution.llAddr() == mappings["hostB:l3"]);
 
     // shutdown the dummy link to get the unittest to end
     dummyLink.stop();
