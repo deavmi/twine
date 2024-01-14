@@ -73,7 +73,7 @@ public class ArpManager : Receiver
         Message msg;
         if(toMessage(arpReq, msg))
         {
-            link.transmit(msg.encode());
+            link.broadcast(msg.encode());
         }
         else
         {
