@@ -236,7 +236,12 @@ version(unittest)
             this.hostToAdv = hostToAdv;
         }
 
-        public override void transmit(byte[] dataIn)
+        public override void transmit(byte[] dataIn, string to)
+        {
+            // not used
+        }
+
+        public override void broadcast(byte[] dataIn)
         {
             // on transmit lock, store, wake up, unlock
             this.ingressLock.lock();
