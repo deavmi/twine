@@ -182,12 +182,12 @@ public class Router : Receiver
             this.routesLock.unlock();
         }
         
-        writeln("| Destination          | isDirect | Via            | Link              |");
-        writeln("|----------------------|----------|----------------|-------------------|");
+        writeln("| Destination          | isDirect | Via            | Link              | Distance |");
+        writeln("|----------------------|----------|----------------|-------------------|----------|");
         foreach(Route route; this.routes)
         {
             // fixme, we are deadlocking ore blocking forever (probs deadlocking) on route.link() here
-            writeln("| "~route.destination()~"\t| "~to!(string)(route.isDirect())~"\t| "~route.gateway()~"\t| "~to!(string)(route.link()));
+            writeln("| "~route.destination()~"\t| "~to!(string)(route.isDirect())~"\t| "~route.gateway()~"\t| "~to!(string)(route.link())~"\t| "~to!(string)(route.distance())~" |");
         }
     }
 
@@ -200,7 +200,22 @@ public class Router : Receiver
             this.routesLock.unlock();
         }
 
-        this.routes[route.destination()] = route;
+        Route* cr = route.destination() in this.routes;
+
+        // if no such route installs, go ahead and install it
+        if(cr is null)
+        {
+            this.routes[route.destination()] = route;
+        }
+        // if such a route exists, then only install it if it
+        // has a smaller distance than the current route
+        else
+        {
+            if(route.distance() < (*cr).distance())
+            {
+                this.routes[route.destination()] = route;
+            }
+        }
     }
 
     // Handles all sort of advertisement messages
@@ -211,16 +226,17 @@ public class Router : Receiver
         {
             if(advMesg.isAdvertisement())
             {
-                string destAdv;
-                if(advMesg.getDestination(destAdv))
+                RouteAdvertisement ra;
+                if(advMesg.getAdvertisement(ra))
                 {
-                    logger.dbg("Got advertisement for a host '", destAdv, "'");
+                    logger.dbg("Got advertisement for a host '", ra, "'");
 
                     // todo, extrat details and create route to install
-                    string dest = destAdv;
+                    string dest = ra.getAddr();
                     Link on = link;
                     string via = advMesg.getOrigin();
-                    Route nr = Route(dest, on, via);
+                    ubyte distance = cast(ubyte)(ra.getDistance()+64); // new distance should be +64'd
+                    Route nr = Route(dest, on, via, distance);
 
                     // never install over self-route
                     if(nr.destination() != getPublicKey())
@@ -242,7 +258,7 @@ public class Router : Receiver
 
     private void installSelfRoute()
     {
-        Route selfR = Route(getPublicKey(), null);
+        Route selfR = Route(getPublicKey(), null, 0);
         installRoute(selfR);
     }
 
@@ -258,6 +274,11 @@ public class Router : Receiver
         return this.routes.values.dup;
     }
 
+    /** 
+     * Sends out modified routes from the routing
+     * table (with us as the `via`) on an interval
+     * whilst we are running
+     */
     private void advertiseLoop()
     {
         while(this.running)
@@ -275,8 +296,9 @@ public class Router : Receiver
                     logger.info("Advertising route '", route, "'");
                     string dst = route.destination();
                     string via = this.getPublicKey(); // routes must be advertised as if they're from me now
+                    ubyte distance = route.distance();
 
-                    Advertisement advMesg = Advertisement.newAdvertisement(dst, via);
+                    Advertisement advMesg = Advertisement.newAdvertisement(dst, via, distance);
                     Message message;
                     if(toMessage(advMesg, message))
                     {
@@ -499,4 +521,64 @@ unittest
     
 
 
+}
+
+
+/**
+ * Host (p1) --- Host (p2)
+ * Host (p1) --- Host (p3)
+ */
+unittest
+{
+    PipedLink p1_to_p2 = new PipedLink("p1_2:addr");
+    PipedLink p2_to_p1 = new PipedLink("p2:addr");
+
+    p1_to_p2.connect(p2_to_p1, p2_to_p1.getAddress());
+    p2_to_p1.connect(p1_to_p2, p1_to_p2.getAddress());
+
+    
+
+    PipedLink p1_to_p3 = new PipedLink("p1_3:addr");
+    PipedLink p3_to_p1 = new PipedLink("p3:addr");
+
+    p1_to_p3.connect(p3_to_p1, p3_to_p1.getAddress());
+    p3_to_p1.connect(p1_to_p3, p1_to_p3.getAddress());
+
+    
+
+    
+
+
+    Router r1 = new Router(["p1Pub", "p1Priv"]);
+    r1.getLinkMan().addLink(p1_to_p2);
+    r1.getLinkMan().addLink(p1_to_p3);
+    r1.start();
+
+    Router r2 = new Router(["p2Pub", "p2Priv"]);
+    r2.getLinkMan().addLink(p2_to_p1);
+    r2.start();
+
+    Router r3 = new Router(["p3Pub", "p3Priv"]);
+    r3.getLinkMan().addLink(p3_to_p1);
+    r3.start();
+
+
+    // todo, please do assertions on routes for the
+    // sake of testing
+    size_t cyclesMax = 10;
+    size_t cycleCnt = 0;
+    while(cycleCnt < cyclesMax)
+    {
+        writeln("<<<<<<<<<< r1 routes >>>>>>>>>>");
+        r1.dumpRoutes();
+
+        writeln("<<<<<<<<<< r2 routes >>>>>>>>>>");
+        r2.dumpRoutes();
+
+        writeln("<<<<<<<<<< r3 routes >>>>>>>>>>");
+        r3.dumpRoutes();
+
+        Thread.sleep(dur!("seconds")(2));
+        cycleCnt++;
+    }
 }
