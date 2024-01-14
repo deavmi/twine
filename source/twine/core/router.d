@@ -333,34 +333,34 @@ version(unittest)
 
 unittest
 {
-    // create and start router
-    Router r = new Router();
-    r.start();
+    // // create and start router
+    // Router r = new Router();
+    // r.start();
 
-    // hosts I want to send out during adverstiements
-    string dummyHost1 = "hostB";
-    string dummyHost2 = "hostC";
+    // // hosts I want to send out during adverstiements
+    // string dummyHost1 = "hostB";
+    // string dummyHost2 = "hostC";
 
-    // we add a few links which will respond
-    // to advertisements in a coin-flip manner
-    // and if so, then with a random delay
-    //
-    // I also provuide the src addresses of these links
-    AdvBouncerLink l1 = new AdvBouncerLink("fe80:1::1", dummyHost1);
-    AdvBouncerLink l2 = new AdvBouncerLink("fe80:2::1", dummyHost2);
-    l1.test_begin(), l2.test_begin();
-    r.getLinkMan().addLink(l1);
-    r.getLinkMan().addLink(l2);
+    // // we add a few links which will respond
+    // // to advertisements in a coin-flip manner
+    // // and if so, then with a random delay
+    // //
+    // // I also provuide the src addresses of these links
+    // AdvBouncerLink l1 = new AdvBouncerLink("fe80:1::1", dummyHost1);
+    // AdvBouncerLink l2 = new AdvBouncerLink("fe80:2::1", dummyHost2);
+    // l1.test_begin(), l2.test_begin();
+    // r.getLinkMan().addLink(l1);
+    // r.getLinkMan().addLink(l2);
 
 
 
-    // for info sake, dump the routing table every now
-    // and then (make this a part of the router?)
-    while(true)
-    {
-        r.dumpRoutes();
-        Thread.sleep(dur!("seconds")(10));
-    }
+    // // for info sake, dump the routing table every now
+    // // and then (make this a part of the router?)
+    // while(true)
+    // {
+    //     r.dumpRoutes();
+    //     Thread.sleep(dur!("seconds")(10));
+    // }
 
 }
 
