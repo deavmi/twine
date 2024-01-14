@@ -80,7 +80,12 @@ public abstract class Link
     }
 
     // Link-implementation specific for driver to send data
-    public abstract void transmit(byte[] xmit);
+    // to a specific destination address
+    public abstract void transmit(byte[] xmit, string addr);
+
+    // Link-implementation spefici for driver to broadcast
+    // to all hosts on its broadcast domain
+    public abstract void broadcast(byte[] xmit);
 
     // Link-implementation specific for driver to report its address
     public abstract string getAddress();
