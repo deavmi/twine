@@ -111,12 +111,13 @@ public class ArpManager : Receiver
         }
 
         // wait for reply
-        string llAddr = waitForLLAddr(addr);
+        string llAddr;
+        bool status = waitForLLAddr(addr, llAddr);
 
-        // if `llAddr` is empty then failed
-        if(llAddr == "")
+        // if timed out
+        if(!status)
         {
-            logger.warn("Arp failed");
+            logger.warn("Arp failed for target: ", target);
             return ArpEntry.empty();
         }
         else
@@ -130,7 +131,7 @@ public class ArpManager : Receiver
     // map l3Addr -> llAddr
     private string[string] addrIncome;
 
-    private string waitForLLAddr(string l3Addr)
+    private bool waitForLLAddr(string l3Addr, ref string llAddrOut)
     {
         StopWatch timer = StopWatch(AutoStart.yes);
 
@@ -144,7 +145,7 @@ public class ArpManager : Receiver
                 this.waitLock.unlock();
             }
 
-            this.waitSig.wait(dur!("msecs")(500)); // todo, duty cycle if missed notify
+            this.waitSig.wait(dur!("msecs")(500)); // todo, duty cycle if missed notify but also helps with checking for the timeout
 
             // scan if we have it
             string* llAddr = l3Addr in this.addrIncome;
@@ -152,11 +153,12 @@ public class ArpManager : Receiver
             {
                 string llAddrRet = *llAddr;
                 this.addrIncome.remove(l3Addr);
-                return llAddrRet;
+                llAddrOut = llAddrRet; // set result
+                return true; // did not timeout
             }
         }
 
-        return ""; // todo, when empty it means failed
+        return false; // timed out
     }
 
     private void placeLLAddr(string l3Addr, string llAddr)
@@ -351,14 +353,18 @@ version(unittest)
                                     string l3Addr_requested;
                                     if(arpMsg.getRequestedL3(l3Addr_requested))
                                     {
-                                        Arp arpRep;
-                                        if(arpMsg.makeResponse(this.mappings[l3Addr_requested], arpRep))
+                                        // if we have a mapping for that
+                                        if((l3Addr_requested in this.mappings) !is null)
                                         {
-                                            Message msgRep;
-                                            if(toMessage(arpRep, msgRep))
+                                            Arp arpRep;
+                                            if(arpMsg.makeResponse(this.mappings[l3Addr_requested], arpRep))
                                             {
-                                                logger.dbg("placing a fake arp reply to receiver");
-                                                receive(msgRep.encode());
+                                                Message msgRep;
+                                                if(toMessage(arpRep, msgRep))
+                                                {
+                                                    logger.dbg("placing a fake arp reply to receiver");
+                                                    receive(msgRep.encode());
+                                                }
                                             }
                                         }
                                     }
@@ -408,14 +414,17 @@ unittest
 
     ArpManager man = new ArpManager();
 
-    // try resolve address `hostA:l3` over the `dummyLink` link
+    // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
     ArpEntry resolution;
     assert(man.resolve("hostA:l3", dummyLink, resolution));
     assert(resolution.llAddr() == mappings["hostA:l3"]);
 
-    // try resolve address `hostB:l3` over the `dummyLink` link
+    // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
     assert(man.resolve("hostB:l3", dummyLink, resolution));
     assert(resolution.llAddr() == mappings["hostB:l3"]);
+
+    // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
+    assert(man.resolve("hostC:l3", dummyLink, resolution) == false);
 
     // shutdown the dummy link to get the unittest to end
     dummyLink.stop();
