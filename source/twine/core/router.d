@@ -596,9 +596,52 @@ unittest
         cycleCnt++;
     }
 
-    // get routes from both and check them
+    // get routes from both and check that both are 2-many
     Route[] r1_routes = r1.getRoutes();
     Route[] r2_routes = r2.getRoutes();
+    assert(r1_routes.length == 2);
+    assert(r2_routes.length == 2);
+
+    // ensure that we can find router 1's self-route
+    // and route to router 2
+    Route foundR1_selfRoute;
+    Route foundR1_R2route;
+    foreach(Route r; r1_routes)
+    {
+        if(r.destination() == r1.getPublicKey())
+        {
+            foundR1_selfRoute = r;
+        }
+        else
+        {
+            foundR1_R2route = r;
+        }
+    }
+    assert(foundR1_selfRoute.destination() == r1.getPublicKey());
+    assert(foundR1_R2route.destination() == r2.getPublicKey());
+
+    // ensure that we can find router 2's self-route
+    // and route to router 1
+    Route foundR2_selfRoute;
+    Route foundR2_R1route;
+    foreach(Route r; r2_routes)
+    {
+        if(r.destination() == r2.getPublicKey())
+        {
+            foundR2_selfRoute = r;
+        }
+        else
+        {
+            foundR2_R1route = r;
+        }
+    }
+    assert(foundR2_selfRoute.destination() == r2.getPublicKey());
+    assert(foundR2_R1route.destination() == r1.getPublicKey());
+
+
+
+    writeln(r1_routes);
+    writeln(r2_routes);
 
     // stop routers
     r1.stop();
