@@ -9,22 +9,24 @@ public struct Route
     private string dstKey; // destination
     private Link ll; // link to use
     private string viaKey; // gateway (can be empty)
+    private ubyte dst;
 
     private StopWatch lifetime;
     private Duration expirationTime;
 
     // direct route (reachable over the given link)
-    this(string dst, Link link)
+    this(string dst, Link link, ubyte distance)
     {
-        this(dst, link, dst);
+        this(dst, link, dst, distance);
     }
 
-    // indirect royute (reachable via the `via`)
-    this(string dst, Link link, string via, Duration expirationTime = dur!("seconds")(60))
+    // indirect route (reachable via the `via`)
+    this(string dst, Link link, string via, ubyte distance, Duration expirationTime = dur!("seconds")(60))
     {
         this.dstKey = dst;
         this.ll = link;
         this.viaKey = via;
+        this.dst = distance;
 
         this.lifetime = StopWatch(AutoStart.yes);
         this.expirationTime = expirationTime;
@@ -63,5 +65,10 @@ public struct Route
     public string gateway()
     {
         return this.viaKey;
+    }
+
+    public ubyte distance()
+    {
+        return this.dst;
     }
 }
