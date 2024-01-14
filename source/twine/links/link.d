@@ -19,16 +19,35 @@ public abstract class Link
     
     // A link driver must call this when it
     // has new data
-    public final void receive(byte[] recv)
+    public final void receive(byte[] recv) // todo, src addr?
     {
+        // To avoid potential design issues
+        // lock, copy, unlock and then emit
+        // we have NO idea what the observer
+        // is going to do, including trying
+        // to potentially lock A (outside of here)
+        // whilst holding this (B) BUT another
+        // thread has lock A and wants B (see `getRecvCnt()`)
+        //
+        // if we do our strat sugested then we
+        // lock B, unlock it then run observer's
+        // code which means that ANOTHER thread
+        // gets lock B whilst holding A, finishes
+        // then our observer gets A
+        Receiver[] cpy;
         this.receiverLock.lock();
-
-        scope(exit)
-        {
-            this.receiverLock.unlock();
-        }
-
         foreach(Receiver endpoint; this.receivers)
+        {
+            cpy ~= endpoint;
+        }
+        this.receiverLock.unlock();
+
+        // scope(exit)
+        // {
+        //     this.receiverLock.unlock();
+        // }
+
+        foreach(Receiver endpoint; cpy)
         {
             endpoint.onReceive(this, recv);
         }
@@ -93,6 +112,13 @@ public abstract class Link
     // shows the memory address, type and the number of attached receivers
     public override string toString()
     {
+        // fixme, calling this has shown to cause deadlocks, and I know one case where
+        // we lock routes, then  we try to get count
+        // and another thread delivering a message locks this and it tries to
+        // iterate over routes - deadlock
+        //
+        // somehow my method hasn;t
+        
         import std.string : split;
         return split(this.classinfo.name, ".")[$-1]~" [id: "~to!(string)(cast(void*)this) ~", recvs: "~to!(string)(getRecvCnt())~"]";
     }
