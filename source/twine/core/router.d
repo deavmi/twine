@@ -308,167 +308,7 @@ version(unittest)
     import std.conv : to;
 
     import twine.core.wire;
-
-    public class AdvBouncerLink : Link
-    {
-        private Thread t;
-
-        private byte[][] ingress;
-        private Mutex ingressLock;
-        private Condition ingressSig;
-
-        private string srcAddr;
-        private string hostToAdv;
-        
-        // takes in the the srcAddr to use
-        // and also the dummy host to advertise
-        // every now-and-then
-        //
-        // todo: shoudl be REALLY be testing the above
-        // here and not with a router-to-router
-        // test?
-        this(string srcAddr, string hostToAdv)
-        {
-            this.t = new Thread(&listenerLoop);
-            this.ingressLock = new Mutex();
-            this.ingressSig = new Condition(this.ingressLock);
-            this.srcAddr = srcAddr;
-            this.hostToAdv = hostToAdv;
-        }
-
-        public override void transmit(byte[] dataIn, string to)
-        {
-            // not used
-        }
-
-        public override void broadcast(byte[] dataIn)
-        {
-            // on transmit lock, store, wake up, unlock
-            this.ingressLock.lock();
-
-            scope(exit)
-            {
-                this.ingressLock.unlock();
-            }
-
-            this.ingress ~= dataIn;
-            this.ingressSig.notify();
-        }
-
-        public override string getAddress()
-        {
-            return this.srcAddr;
-        }
-
-        private void listenerLoop()
-        {
-            while(true)
-            {
-                // lock, wait, process, unlock
-                this.ingressLock.lock();
-                this.ingressSig.wait();
-
-                scope(exit)
-                {
-                    this.ingress.length = 0;
-                    this.ingressLock.unlock();
-                }
-
-                // process each advertisement
-                foreach(byte[] dataIn; this.ingress)
-                {
-                    // decode
-                    logger.dbg("AdvLink[", cast(void*)this, "]: received advertisement (presumably): ", dataIn);
-
-                    Message message;
-                    
-                    if(Message.decode(dataIn, message) && message.getType() == MType.ADV)
-                    {
-                        Advertisement advMesg;
-                        
-                        if(message.decodeAs(advMesg))
-                        {
-                            logger.dbg("AdvLink: Incoming adv: ", advMesg);
-                        }
-                        else
-                        {
-                            // failure to decode
-                        }
-                    }
-                    else
-                    {
-                        logger.error("Could not decode incoming message");
-                    }
-
-                }
-
-                // also send advertisement of my own routes
-                byte[] dataOut = cast(byte[])"ABBA"; // todo, implement (note: handling bad bytes FAILS without exception in msgpack-d)
-
-                // route to advertise originates from ourselves as it is a self-route
-                string dst = hostToAdv;
-                string via = dst; // self-route
-                Advertisement adv = Advertisement.newAdvertisement(dst, via);
-                Message mesgOut;
-                toMessage(adv, mesgOut);
-                dataOut = mesgOut.encode();
-
-                // Place resp into link's rx
-                this.receive(dataOut);
-            }
-        }
-
-        public void test_begin()
-        {
-            this.t.start();
-        }
-
-        public void test_end()
-        {
-            // todo, actually add a stop somewhere in the listenerLoop()
-            this.t.join();
-        }
-    }
 }
-
-unittest
-{
-    // // create and start router
-    // Router r = new Router();
-    // r.start();
-
-    // // hosts I want to send out during adverstiements
-    // string dummyHost1 = "hostB";
-    // string dummyHost2 = "hostC";
-
-    // // we add a few links which will respond
-    // // to advertisements in a coin-flip manner
-    // // and if so, then with a random delay
-    // //
-    // // I also provuide the src addresses of these links
-    // AdvBouncerLink l1 = new AdvBouncerLink("fe80:1::1", dummyHost1);
-    // AdvBouncerLink l2 = new AdvBouncerLink("fe80:2::1", dummyHost2);
-    // l1.test_begin(), l2.test_begin();
-    // r.getLinkMan().addLink(l1);
-    // r.getLinkMan().addLink(l2);
-
-
-
-    // // for info sake, dump the routing table every now
-    // // and then (make this a part of the router?)
-    // while(true)
-    // {
-    //     r.dumpRoutes();
-    //     Thread.sleep(dur!("seconds")(10));
-    // }
-
-}
-
-
-
-
-// todo, unittest with router-to-router-to-router testing
-
 
 version(unittest)
 {
@@ -561,6 +401,11 @@ version(unittest)
  *
  * [ Host (p1) ] --> (p2)
  * [ Host (p2) ] --> (p1)
+ *
+ * We test that both receives
+ * each other's self-routes
+ * in this test. After which,
+ * we shut the routers down.
  */
 unittest
 {
