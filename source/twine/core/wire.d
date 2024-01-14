@@ -66,7 +66,8 @@ public struct Message
         static if
         (
             __traits(isSame, T, Advertisement) ||
-            __traits(isSame, T, Data)
+            __traits(isSame, T, Data) ||
+            __traits(isSame, T, Arp)
         )
         {
             payloadOut = unpack!(T)(cast(ubyte[])payloadBytes);
@@ -168,18 +169,18 @@ public struct Arp
         return arp;
     }
 
-    // public bool getRequestedL3(ref string l3Addr)
-    // {
-    //     // sanity check, can decode if a request
-    //     if(getType() == ArpType.REQUEST)
-    //     {
-    //         return nothrow_unpack(l3Addr, this.content);
-    //     }
-    //     else
-    //     {
-    //         return false;
-    //     }
-    // }
+    public bool getRequestedL3(ref string l3Addr)
+    {
+        // sanity check, can decode if a request
+        if(getType() == ArpType.REQUEST)
+        {
+            return nothrow_unpack(l3Addr, this.content);
+        }
+        else
+        {
+            return false;
+        }
+    }
 
     public bool makeResponse(string llAddr, ref Arp respOut)
     {
@@ -217,6 +218,11 @@ public struct Arp
     public ArpType getType()
     {
         return this.aType;
+    }
+
+    public bool isRequest()
+    {
+        return getType() == ArpType.REQUEST;
     }
 
     public bool getReply(ref ArpReply reply)
@@ -304,6 +310,10 @@ private MType typeToMType(alias T)()
     else static if(__traits(isSame, T, Data))
     {
         return MType.DATA;
+    }
+    else static if(__traits(isSame, T, Arp))
+    {
+        return MType.ARP;
     }
     else
     {
