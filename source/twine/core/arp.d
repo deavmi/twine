@@ -31,11 +31,10 @@ private struct Target
 
 public class ArpManager : Receiver
 {
-    // private ArpEntry[string] table;
-    // private Mutex tableLock; // todo, condvar to wake up on changes and maybe check expiration (cause why not)
-
     private Mutex waitLock;
     private Condition waitSig;
+
+    private Duration timeout = dur!("seconds")(5); // todo, configurabel
 
     private CacheMap!(Target, ArpEntry) table;
 
@@ -47,9 +46,37 @@ public class ArpManager : Receiver
         this.waitSig = new Condition(this.waitLock);
     }
 
-    public ArpEntry resolve(string networkAddr, Link onLink)
+    /** 
+     * Attempts to resolve the link-layer address of
+     * the provided layer-3 address over the provided
+     * link.
+     *
+     * On success stroing the resulting `ArpEntry`
+     * in the third parameter
+     *
+     * Params:
+     *   networkAddr = the layer-3 address to resolve
+     * by
+     *   onLink = the `Link` to resolve over
+     *   entry = resulting entry
+     * Returns: `true` if resolution succeeded, `false`
+     * otherwise (the `entry` is left untouched)
+     */
+    public bool resolve(string networkAddr, Link onLink, ref ArpEntry entry)
     {
-        return resolve(Target(networkAddr, onLink));
+        ArpEntry resolvedEntry = resolve(Target(networkAddr, onLink));
+
+        // resolution failed if entry is empty
+        if(resolvedEntry.isEmpty())
+        {
+            return false;
+        }
+        // else, succeeded, set and return
+        else
+        {
+            entry = resolvedEntry;
+            return true;
+        }
     }
 
     private ArpEntry resolve(Target target)
@@ -83,12 +110,21 @@ public class ArpManager : Receiver
             logger.error("Fok, encode error during regen(Target)");
         }
 
-        // wait for reply (todo, add timer)
+        // wait for reply
         string llAddr = waitForLLAddr(addr);
-        ArpEntry arpEntry = ArpEntry(addr, llAddr);
-        logger.info("Arp request completed: ", arpEntry);
 
-        return arpEntry;
+        // if `llAddr` is empty then failed
+        if(llAddr == "")
+        {
+            logger.warn("Arp failed");
+            return ArpEntry.empty();
+        }
+        else
+        {
+            ArpEntry arpEntry = ArpEntry(addr, llAddr);
+            logger.info("Arp request completed: ", arpEntry);
+            return arpEntry;
+        }
     }
 
     // map l3Addr -> llAddr
@@ -96,8 +132,10 @@ public class ArpManager : Receiver
 
     private string waitForLLAddr(string l3Addr)
     {
-        // todo, make timeout-able
-        while(true)
+        StopWatch timer = StopWatch(AutoStart.yes);
+
+        // todo, make timeout-able (todo, make configurable)
+        while(timer.peek() < this.timeout)
         {
             this.waitLock.lock();
 
@@ -106,7 +144,7 @@ public class ArpManager : Receiver
                 this.waitLock.unlock();
             }
 
-            this.waitSig.wait(); // todo, duty cycle if missed notify
+            this.waitSig.wait(dur!("msecs")(500)); // todo, duty cycle if missed notify
 
             // scan if we have it
             string* llAddr = l3Addr in this.addrIncome;
@@ -117,6 +155,8 @@ public class ArpManager : Receiver
                 return llAddrRet;
             }
         }
+
+        return ""; // todo, when empty it means failed
     }
 
     private void placeLLAddr(string l3Addr, string llAddr)
@@ -204,6 +244,16 @@ public struct ArpEntry
     public string llAddr()
     {
         return this.l2Addr;
+    }
+
+    public bool isEmpty()
+    {
+        return this.l3Addr == "" && this.l2Addr == "";
+    }
+
+    public static ArpEntry empty()
+    {
+        return ArpEntry("", "");
     }
 }
 
@@ -336,6 +386,16 @@ version(unittest)
     }
 }
 
+/**
+ * This tests the `ArpManager`'s ability
+ * to handle arp requests and responses
+ *
+ * We make use of a dummy `Link` which
+ * we provide with mappings of layer 3
+ * to layer 2 addresses such that when
+ * an ARP request comes in we can respond
+ * with the relevant details as such
+ */
 unittest
 {
     // Map some layer 3 -> layer 2 addresses
@@ -349,11 +409,12 @@ unittest
     ArpManager man = new ArpManager();
 
     // try resolve address `hostA:l3` over the `dummyLink` link
-    ArpEntry resolution = man.resolve("hostA:l3", dummyLink);
+    ArpEntry resolution;
+    assert(man.resolve("hostA:l3", dummyLink, resolution));
     assert(resolution.llAddr() == mappings["hostA:l3"]);
 
     // try resolve address `hostB:l3` over the `dummyLink` link
-    resolution = man.resolve("hostB:l3", dummyLink);
+    assert(man.resolve("hostB:l3", dummyLink, resolution));
     assert(resolution.llAddr() == mappings["hostB:l3"]);
 
     // shutdown the dummy link to get the unittest to end
