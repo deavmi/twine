@@ -181,7 +181,7 @@ public class Router : Receiver
                     if(toMessage(advMesg, message))
                     {
                         logger.dbg("Sending advertisement on '", link, "'...");
-                        link.transmit(message.encode()); // should have a return value for success or failure
+                        link.broadcast(message.encode()); // should have a return value for success or failure
                         logger.info("Sent advertisement");
                     }
                     else
