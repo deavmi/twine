@@ -68,12 +68,15 @@ public class ArpManager : Receiver
         // attach as a receiver to this link
         link.attachReceiver(this);
 
+        logger.dbg("attach done");
+
         // todo, send request
         Arp arpReq = Arp.newRequest(addr);
         Message msg;
         if(toMessage(arpReq, msg))
         {
             link.broadcast(msg.encode());
+            logger.dbg("arp req sent");
         }
         else
         {
@@ -103,7 +106,7 @@ public class ArpManager : Receiver
                 this.waitLock.unlock();
             }
 
-            this.waitSig.wait();
+            this.waitSig.wait(); // todo, duty cycle if missed notify
 
             // scan if we have it
             string* llAddr = l3Addr in this.addrIncome;
@@ -170,6 +173,12 @@ public class ArpManager : Receiver
         }
     }
     
+
+    // todo, how to activate?
+    public void test_stop()
+    {
+        destroy(this.table);
+    }
 }
 
 import std.datetime.stopwatch : StopWatch, AutoStart;
@@ -196,4 +205,156 @@ public struct ArpEntry
     {
         return this.l2Addr;
     }
+}
+
+version(unittest)
+{
+    import twine.links.link;
+    import std.stdio;
+    import core.thread : Thread;
+    import core.sync.mutex : Mutex;
+    import core.sync.condition : Condition;
+    import std.conv : to;
+
+    // a dummy link which will respond with
+    // arp replies using the provided map
+    // of l3Addr -> l2Addr
+    public class ArpRespondingLink : Link
+    {
+        private Thread t;
+        private bool running;
+
+        private byte[][] ingress;
+        private Mutex ingressLock;
+        private Condition ingressSig;
+
+        private string[string] mappings;
+
+        this(string[string] mappings)
+        {
+            this.t = new Thread(&listenerLoop);
+            this.ingressLock = new Mutex();
+            this.ingressSig = new Condition(this.ingressLock);
+            this.mappings = mappings;
+
+            this.running = true;
+            this.t.start();
+        }
+
+        public override string getAddress()
+        {
+            // not used
+            return null;
+        }
+
+        public override void transmit(byte[] dataIn, string to)
+        {
+            // not used
+        }
+
+        public override void broadcast(byte[] dataIn)
+        {
+            // on transmit lock, store, wake up, unlock
+            this.ingressLock.lock();
+
+            scope(exit)
+            {
+                this.ingressLock.unlock();
+            }
+
+            this.ingress ~= dataIn;
+            this.ingressSig.notify();
+        }
+
+        private void listenerLoop()
+        {
+            while(this.running)
+            {
+                // lock, wait, process, unlock
+                this.ingressLock.lock();
+                this.ingressSig.wait(dur!("seconds")(1)); //todo, duty cycle
+                logger.dbg("ArpRespondingLink waked, with ", this.ingress.length, " many packets");
+
+                scope(exit)
+                {
+                    this.ingress.length = 0;
+                    this.ingressLock.unlock();
+                }
+
+                // process each incoming message
+                // but only if they are ARP requests
+                foreach(byte[] dataIn; this.ingress)
+                {
+                    Message msg;
+                    if(Message.decode(dataIn, msg))
+                    {
+                        if(msg.getType() == MType.ARP)
+                        {
+                            Arp arpMsg;
+                            logger.dbg("here");
+                            logger.dbg(msg);
+                            if(msg.decodeAs(arpMsg))
+                            {
+                                
+                                if(arpMsg.isRequest())
+                                {
+                                    string l3Addr_requested;
+                                    if(arpMsg.getRequestedL3(l3Addr_requested))
+                                    {
+                                        Arp arpRep;
+                                        if(arpMsg.makeResponse(this.mappings[l3Addr_requested], arpRep))
+                                        {
+                                            Message msgRep;
+                                            if(toMessage(arpRep, msgRep))
+                                            {
+                                                logger.dbg("placing a fake arp reply to receiver");
+                                                receive(msgRep.encode());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void stop()
+        {
+            this.running = false;
+
+            this.ingressLock.lock();
+
+            scope(exit)
+            {
+                this.ingressLock.unlock();
+            }
+
+            this.ingressSig.notify();
+        }
+    }
+}
+
+unittest
+{
+    // Map some layer 3 -> layer 2 addresses
+    string[string] mappings;
+    mappings["hostA:l3"] = "hostA:l2";
+    mappings["hostB:l3"] = "hostB:l2";
+
+    // create a dummy link that responds with those mappings
+    ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
+
+    ArpManager man = new ArpManager();
+
+    // try resolve address `hostA:l3` over the `dummyLink` link
+    ArpEntry resolution = man.resolve("hostA:l3", dummyLink);
+    assert(resolution.llAddr() == mappings[resolution.networkAddr()]);
+
+    // shutdown the dummy link to get the unittest to end
+    dummyLink.stop();
+
+    // shutdown the arp manager
+    man.test_stop();
 }
