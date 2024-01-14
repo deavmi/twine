@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/twine
+twine.so
+twine.dylib
+twine.dll
+twine.a
+twine.lib
+twine-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst

@@ -1,0 +1,14 @@
+{
+	"authors": [
+		"Tristan B. Velloza Kildaire"
+	],
+	"copyright": "Copyright © 2024, Tristan B. Velloza Kildaire",
+	"dependencies": {
+		"gogga": "~>2.2.1",
+		"msgpack-d": "~>1.0.5",
+		"niknaks": "~>0.8.1"
+	},
+	"description": "Experimental routing daemon",
+	"license": "AGPL v3",
+	"name": "twine"
+}
