@@ -330,6 +330,8 @@ version(unittest)
     import std.conv : to;
 
     import twine.core.wire;
+
+    import niknaks.debugging : dumpArray;
 }
 
 version(unittest)
@@ -515,12 +517,8 @@ unittest
 
 
 
-    writeln(r1_routes);
-    writeln(r2_routes);
-
-    
-
-
+    writeln(dumpArray!(r1_routes));
+    writeln(dumpArray!(r2_routes));
 }
 
 
@@ -593,9 +591,9 @@ unittest
     Route[] r2_routes = r2.getRoutes();
     Route[] r3_routes = r3.getRoutes();
 
-    writeln(r1_routes);
-    writeln(r2_routes);
-    writeln(r3_routes);
+    writeln(dumpArray!(r1_routes));
+    writeln(dumpArray!(r2_routes));
+    writeln(dumpArray!(r3_routes));
 
     // todo, check routes here
 }
