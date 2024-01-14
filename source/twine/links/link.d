@@ -197,7 +197,12 @@ version(unittest)
             }            
         }
 
-        public override void transmit(byte[])
+        public override void transmit(byte[], string)
+        {
+            // not used
+        }
+
+        public override void broadcast(byte[])
         {
             // not used
         }
