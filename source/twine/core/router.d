@@ -579,6 +579,14 @@ unittest
     r2.getLinkMan().addLink(p2);
     r2.start();
 
+    // on assertion failure, try stop everything
+    scope(exit)
+    {
+        // stop routers
+        r1.stop();
+        r2.stop();
+    }
+
 
     // todo, please do assertions on routes for the
     // sake of testing
@@ -643,9 +651,7 @@ unittest
     writeln(r1_routes);
     writeln(r2_routes);
 
-    // stop routers
-    r1.stop();
-    r2.stop();
+    
 
 
 }
