@@ -239,6 +239,28 @@ public struct Arp
     }
 }
 
+public struct RouteAdvertisement
+{
+    private string addr;
+    private ubyte distance;
+
+    this(string address, ubyte distance)
+    {
+        this.addr = address;
+        this.distance = distance;
+    }
+
+    public string getAddr()
+    {
+        return this.addr;
+    }
+
+    public ubyte getDistance()
+    {
+        return this.distance;
+    }
+}
+
 public struct Advertisement
 {
     private string origin;
@@ -277,27 +299,19 @@ public struct Advertisement
         return this.aType == AdvType.ADVERTISEMENT;
     }
 
-    public static Advertisement newAdvertisement(string dst, string origin)
+    public static Advertisement newAdvertisement(string dst, string origin, ubyte distance)
     {
         Advertisement advReq;
         advReq.aType = AdvType.ADVERTISEMENT;
-        advReq.content = cast(byte[])pack(dst);
+        advReq.content = cast(byte[])pack(RouteAdvertisement(dst, distance));
         advReq.origin = origin;
 
         return advReq;
     }
 
-    public bool getDestination(ref string dest)
+    public bool getAdvertisement(ref RouteAdvertisement raOut)
     {
-        try
-        {
-            dest = unpack!(string)(cast(ubyte[])this.content);
-            return true;
-        }
-        catch(UnpackException e)
-        {
-            return false;
-        }
+        return nothrow_unpack(raOut, this.content);
     }
 }
 
