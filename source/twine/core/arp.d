@@ -104,7 +104,7 @@ public class ArpManager : Receiver
 
         return opt;
     }
-    
+
     /** 
      * Upon expiration this method is called to
      * regenerate a `Target`. This will do
@@ -138,7 +138,7 @@ public class ArpManager : Receiver
         }
         else
         {
-            logger.error("Fok, encode error during regen(Target)");
+            logger.error("Arp failed but oh boy, at the encoding level");
         }
 
         // wait for reply
