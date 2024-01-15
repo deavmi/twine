@@ -65,7 +65,7 @@ public class ArpManager : Receiver
      */
     private bool resolve(string networkAddr, Link onLink, ref ArpEntry entry)
     {
-        ArpEntry resolvedEntry = resolve(Target(networkAddr, onLink));
+        ArpEntry resolvedEntry = this.table.get(Target(networkAddr, onLink));
 
         // resolution failed if entry is empty
         if(resolvedEntry.isEmpty())
@@ -104,12 +104,17 @@ public class ArpManager : Receiver
 
         return opt;
     }
-
-    private ArpEntry resolve(Target target)
-    {
-        return this.table.get(target);
-    }
-
+    
+    /** 
+     * Upon expiration this method is called to
+     * regenerate a `Target`. This will do
+     * an `ArpRequest` in order to fill up
+     * the requested entry
+     *
+     * Params:
+     *   target = the key to refresh for
+     * Returns: an `ArpEntry`
+     */
     private ArpEntry regen(Target target)
     {
         // use this link
