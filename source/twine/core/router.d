@@ -128,9 +128,9 @@ public class Router : Receiver
         }
     }
 
-    private void process(Link link, byte[] data)
+    private void process(Link link, byte[] data, string srcAddr)
     {
-        logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes");
+        logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
 
         Message recvMesg;
         if(Message.decode(data, recvMesg))
@@ -155,7 +155,7 @@ public class Router : Receiver
         }
     }
 
-    public void onReceive(Link link, byte[] data)
+    public void onReceive(Link link, byte[] data, string srcAddr)
     {
         // this.msgProcLock.lock();
 
@@ -168,7 +168,7 @@ public class Router : Receiver
         // this.msgProcQueue ~= ProcMesg(link, data);
         // this.msgProcSig.notify();
 
-        process(link, data);
+        process(link, data, srcAddr);
     }
 
     public void dumpRoutes()
