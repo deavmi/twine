@@ -11,6 +11,7 @@ import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6
 
 import std.string : fromStringz;
 import std.socket : Internet6Address;
+import std.conv : to;
 
 /** 
  * Determines if an IPv6 address is link-local
@@ -43,9 +44,20 @@ public struct InterfaceInfo
         this.name = name;
         this.address = address;
     }
+
+    public string getName() const
+    {
+        return this.name;
+    }
+
+    public const(Address) getAddress() const
+    {
+        return this.address;
+    }
 }
 
-private bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
+// note, only does v6 and on link-local specifically
+public bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
 {
     ifaddrs* interfaceAddresses;
     int stat = getifaddrs(&interfaceAddresses);
@@ -127,22 +139,27 @@ public class LLInterface : Link
     private bool running;
     private Duration wakeTime; // time to wake up to check if we should stop (todo, interrupt would be nice)
 
-    this(string interfaceName, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
+    private const InterfaceInfo if_;
+
+    this(InterfaceInfo if_, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
     {
-        InterfaceInfo[] interfaces;
-        determineInterfaceAddresses(interfaces);
-        import niknaks.debugging;
-        writeln(dumpArray!(interfaces));
+        // ensure that the interface is IPv6 and link-local
+        // if(if_.getAddress().addressFamily() == AddressFamily.INET6 && if_.getAddress().name().sa_data)
+        // might need sub-object cast
+
+
+        this.if_ = if_;
 
         // Multicast socket for discovery
-        this.mcastAddress = parseAddress(mcastAddr~"%"~interfaceName, mcastPort);
+        this.mcastAddress = parseAddress(mcastAddr~"%"~if_.getName(), mcastPort);
         this.mcastSock = new Socket(AddressFamily.INET6, SocketType.DGRAM, ProtocolType.UDP);
         
         // Multicast thread
         this.mcastThread = new Thread(&mcastLoop);
 
         // Peering socket for transit
-        this.peerAddress = parseAddress("::", 0); // todo, query interface addresses using getaddrinfo or something
+        writeln("before crash to bind: ", if_.getAddress().toAddrString());
+        this.peerAddress = parseAddress(if_.getAddress().toAddrString()~"%"~if_.getName(), 0); // todo, query interface addresses using getaddrinfo or something
                                                   // in order to derive the link-local address of this host      
         this.peerSock = new Socket(AddressFamily.INET6, SocketType.DGRAM, ProtocolType.UDP);
         
@@ -171,7 +188,12 @@ public class LLInterface : Link
 
     public override string getAddress()
     {
-        return this.peerAddress.toString();
+        return if_.getAddress().toAddrString();
+    }
+
+    public override string toString()
+    {
+        return "LLInterface [name: "~if_.getName()~", address: "~if_.getAddress().toAddrString()~", recvs: "~to!(string)(getRecvCnt())~"]";
     }
 
     public override void transmit(byte[] xmit, string addr)
