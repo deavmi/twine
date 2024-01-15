@@ -215,6 +215,13 @@ public class ArpManager : Receiver
         }
     }
     
+    ~this()
+    {
+        // todo, double check but yes this should be fine, I believe I added checks for this?
+        // as in what if another thread is trying to resolve and we use this? how does
+        // the regeneration function treat it
+        destroy(this.table);
+    }
 
     // todo, how to activate?
     public void test_stop()
@@ -356,14 +363,16 @@ version(unittest)
                                         // if we have a mapping for that
                                         if((l3Addr_requested in this.mappings) !is null)
                                         {
+                                            string l2Addr_found = this.mappings[l3Addr_requested];
+
                                             Arp arpRep;
-                                            if(arpMsg.makeResponse(this.mappings[l3Addr_requested], arpRep))
+                                            if(arpMsg.makeResponse(l2Addr_found, arpRep))
                                             {
                                                 Message msgRep;
                                                 if(toMessage(arpRep, msgRep))
                                                 {
                                                     logger.dbg("placing a fake arp reply to receiver");
-                                                    receive(msgRep.encode());
+                                                    receive(msgRep.encode(), l2Addr_found);
                                                 }
                                             }
                                         }
@@ -430,5 +439,7 @@ unittest
     dummyLink.stop();
 
     // shutdown the arp manager
-    man.test_stop();
+    // man.test_stop();
+
+    destroy(man);
 }
