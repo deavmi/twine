@@ -19,11 +19,13 @@ public class Router : Receiver
     {
         private Link link;
         private byte[] data;
+        private string llSrcAddr;
 
-        this(Link from, byte[] recv)
+        this(Link from, byte[] recv, string llSrcAddr)
         {
             this.link = from;
             this.data = recv;
+            this.llSrcAddr = llSrcAddr;
         }
 
         public Link getLink()
@@ -34,6 +36,11 @@ public class Router : Receiver
         public byte[] getData()
         {
             return this.data;
+        }
+
+        public string getLLSource()
+        {
+            return this.llSrcAddr;
         }
     }
 
@@ -120,7 +127,7 @@ public class Router : Receiver
             // process each message
             foreach(ProcMesg m; this.msgProcQueue)
             {
-                process(m.getLink(), m.getData());
+                process(m.getLink(), m.getData(), m.getLLSource());
             }
 
             // clear all
