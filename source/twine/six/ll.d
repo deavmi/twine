@@ -57,7 +57,23 @@ public struct InterfaceInfo
 
 // todo, add saddr-to-6 method (assumes you checked the af_inet)
 import std.socket : sockaddr;
-public bool extract6addr_unsafe(sockaddr* a, AddressFamily af, ref ubyte[] address) @nogc
+
+/** 
+ * Given a socket address struct and an address family
+ * this will extract the address of said type from
+ * the structure
+ *
+ * Params:
+ *   a = the `sockaddr*`
+ *   af = the `AddressFamily` to filter by
+ *   address = the `ubyte[]` to store the extracted
+ * address
+ * Returns: `true` on success, `false` on unsupported
+ * address family, or if the provided structure is of
+ * a family not matching the requested one or if
+ * the `sockaddr*` is `null`
+ */
+public bool hoistAddress(sockaddr* a, AddressFamily af, ref ubyte[] address) @nogc
 {
     if(a !is null)
     {
@@ -136,7 +152,7 @@ public bool getLinkLocal(ref InterfaceInfo[] interfaces)
             if(if_af == AddressFamily.INET6)
             {
                 ubyte[] addrTo;
-                if(extract6addr_unsafe(cast(sockaddr*)if_.getAddress().name(), if_af, addrTo)) // todo, use const, remove cast
+                if(hoistAddress(cast(sockaddr*)if_.getAddress().name(), if_af, addrTo)) // todo, use const, remove cast
                 {
                     // Copy into stack array that can be copied over too
                     ubyte[16] addr;
