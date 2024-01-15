@@ -99,7 +99,7 @@ public class ArpManager : Receiver
         // if succeeded resolution
         if(resolve(networkAddr, onLink, resolvedEntry))
         {
-            opt = Optional!(ArpEntry)(resolvedEntry);
+            opt.set(resolvedEntry);
         }
 
         return opt;
