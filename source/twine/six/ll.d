@@ -16,7 +16,7 @@ import std.socket : Internet6Address;
  * Determines if an IPv6 address is link-local
  *
  * Params:
- *   addr6 = the address
+ *   addr6 = the address (in big endian)
  * Returns: `true` if so, `false` otherwise
  */
 private bool isLinkLocal(ubyte[16] addr6)
@@ -33,7 +33,19 @@ unittest
     assert(!isLinkLocal([2, 1, 108, 86, 249, 213, 183, 165, 143, 66, 177, 171, 158, 14, 81, 105]));
 }
 
-private bool determineInterfaceAddresses(ref string[] kak)
+public struct InterfaceInfo
+{
+    private const string name;
+    private const Address address;
+
+    this(string name, Address address)
+    {
+        this.name = name;
+        this.address = address;
+    }
+}
+
+private bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
 {
     ifaddrs* interfaceAddresses;
     int stat = getifaddrs(&interfaceAddresses);
@@ -66,26 +78,24 @@ private bool determineInterfaceAddresses(ref string[] kak)
                     // cast to extended sub-object/struct
                     sockaddr_in6* s6Addr = cast(sockaddr_in6*)sAddr;
 
-                    // only want to get da one which has la-link-local
+                    
                     writeln("scope id: ", s6Addr.sin6_scope_id);
-                    if(s6Addr.sin6_scope_id == 18 || true) // todo, this feels broke, might need to manually check addresses
+                    // if(s6Addr.sin6_scope_id == 18 || true) // todo, this feels broke, might need to manually check addresses
+                    
+                    // obtain the 16 bytes (the contained element of in6_addr
+                    // is a singular array of 16 ubytes), meaning we can cast
+                    // direct on it
+                    in6_addr addrBytesC = s6Addr.sin6_addr;
+                    ubyte[16] arr = cast(ubyte[16])addrBytesC;
+                    writeln(arr);
+
+                    // only want to get da one which has la-link-local
+                    if(isLinkLocal(arr))
                     {
                         writeln("Got a lekker linj-local");
-                        // import core.sys.posix.sys.types : sockaddr_in6;
+                        Internet6Address linkLocalAddr = new Internet6Address(arr, 0);
 
-                        // obtain the 16 bytes (the contained element of in6_addr
-                        // is a singular array of 16 ubytes), meaning we can cast
-                        // direct on it
-                        in6_addr addrBytesC = s6Addr.sin6_addr;
-                        ubyte[16] arr = cast(ubyte[16])addrBytesC;
-                        writeln(arr);
-
-                        
-
-
-
-                        
-                        // Internet6Address linkLocalAddr = new Internet6Address(llAddr, 0);
+                        interfaces ~= InterfaceInfo(interfaceName, linkLocalAddr);
                     }
                     
                 }
@@ -119,8 +129,10 @@ public class LLInterface : Link
 
     this(string interfaceName, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
     {
-        string[] kak;
-        determineInterfaceAddresses(kak);
+        InterfaceInfo[] interfaces;
+        determineInterfaceAddresses(interfaces);
+        import niknaks.debugging;
+        writeln(dumpArray!(interfaces));
 
         // Multicast socket for discovery
         this.mcastAddress = parseAddress(mcastAddr~"%"~interfaceName, mcastPort);
