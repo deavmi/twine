@@ -47,12 +47,13 @@ public class LLInterface : Link
 
     public override void transmit(byte[] xmit, string addr)
     {
-        
+        // we could send via any socket probably, just destination address is iportant
+        this.mcastSock.sendTo(xmit, parseAddress(addr));
     }
 
     public override void broadcast(byte[] xmit)
     {
-        this.mcastSock.send(xmit);
+        this.mcastSock.sendTo(xmit, cast(Address)this.mcastAddress);
     }
 
     private void mcastLoop()
