@@ -10,6 +10,7 @@ import std.datetime.systime : Clock;
 import twine.core.route : Route;
 import core.sync.mutex : Mutex;
 import core.sync.condition : Condition;
+import niknaks.functional : Optional;
 
 public class Router : Receiver
 {
@@ -176,6 +177,63 @@ public class Router : Receiver
         // this.msgProcSig.notify();
 
         process(link, data, srcAddr);
+    }
+
+    public void sendData(ubyte[] payload, string to)
+    {
+
+    }
+
+    /** 
+     * Finds a route for the given destination
+     * and returns it in the form of an optional
+     *
+     * Params:
+     *   destination = the destination
+     * Returns: an `Optional!(Route)`
+     */
+    public Optional!(Route) findRoute(string destination)
+    {
+        Optional!(Route) opt;
+
+        Route ro;
+        if(findRoute(destination, ro))
+        {
+            opt.set(ro);
+        }
+
+        return opt;
+    }
+
+    /** 
+     * Finds a route for the given destination
+     *
+     * Params:
+     *   destination = 
+     *   ro = the found route is placed here
+     * (if found)
+     * Returns: `true` if a matching route was
+     * found, otherwise `false`
+     */
+    private bool findRoute(string destination, ref Route ro)
+    {
+        this.routesLock.lock();
+
+        scope(exit)
+        {
+            this.routesLock.unlock();
+        }
+
+        foreach(Route co; this.routes)
+        {
+            if(co.destination() == destination)
+            {
+                ro = co;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void dumpRoutes()
