@@ -96,7 +96,8 @@ public class Router : Receiver
         this.running = false;
         this.advThread.join();
         
-        // stop_msgProc();
+        // destroy the arp manager to stop it
+        destroy(this.arp);
     }
 
     private void stop_msgProc()
