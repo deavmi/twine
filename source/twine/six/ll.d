@@ -345,7 +345,7 @@ public class LLInterface : Link
 
     public override void broadcast(byte[] xmit)
     {
-        this.mcastSock.sendTo(xmit, cast(Address)this.mcastAddress);
+        this.peerSock.sendTo(xmit, cast(Address)this.mcastAddress);
     }
 
     private void mcastLoop()
