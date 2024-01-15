@@ -393,7 +393,7 @@ version(unittest)
             Link* foundEndpoint = to in this.endpoints;
             if(foundEndpoint !is null)
             {
-                foundEndpoint.receive(dataIn);
+                foundEndpoint.receive(dataIn, getAddress());
             }
         }
 
