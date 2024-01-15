@@ -175,7 +175,7 @@ public class ArpManager : Receiver
         this.addrIncome[l3Addr] = llAddr;
     }
 
-    public override void onReceive(Link src, byte[] data)
+    public override void onReceive(Link src, byte[] data, string srcAddr)
     {
         Message recvMesg;
         if(Message.decode(data, recvMesg))
