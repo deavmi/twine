@@ -2,27 +2,27 @@ module twine.app;
 
 import std.stdio;
 
-void main()
-{
-	writeln("Edit source/app.d to start your project.");
+import twine.logging;
 
-	import twine.six.ll : LLInterface, determineInterfaceAddresses, InterfaceInfo;
+void main(string[] args)
+{
+	import twine.six.ll : LLInterface, InterfaceInfo, getIfAddrs, getLinkLocal;
+
 	import twine.core.router;
 
 	Router r = new Router(["pubKey1", "privKey1"]);
 
-	// todo, for now i detect all interfaces which have link-local
-	InterfaceInfo[] allLinkLocalInterfaces;
-	determineInterfaceAddresses(allLinkLocalInterfaces);
-	import niknaks.debugging;
-    writeln("Will run on link-local interfaces:\n\n"~dumpArray!(allLinkLocalInterfaces));
 
+	import niknaks.debugging;
+    writeln("Will run on link-local interfaces:\n\n"~dumpArray!(args));
 
 	// add all link-local interfaces
-	foreach(InterfaceInfo if_; allLinkLocalInterfaces)
+	foreach(string if_name; args[1..$])
 	{
-		LLInterface lli = new LLInterface(if_);
+		logger.info("Adding interface '"~if_name~"'...");
+		LLInterface lli = new LLInterface(if_name);
 		r.getLinkMan().addLink(lli);
+		logger.info("Adding interface '"~if_name~"'... [done]");
 	}
 	
 
