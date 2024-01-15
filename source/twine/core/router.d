@@ -46,11 +46,6 @@ public class Router : Receiver
         }
     }
 
-    private ProcMesg[] msgProcQueue;
-    private Thread msgProcThread;
-    private Mutex msgProcLock;
-    private Condition msgProcSig;
-
     // link management
     private const LinkManager linkMan; // const, never should be changed besides during construction
     private Thread advThread;
@@ -72,10 +67,6 @@ public class Router : Receiver
         this.advThread = new Thread(&advertiseLoop);
         this.advFreq = dur!("seconds")(5);
 
-        this.msgProcThread = new Thread(&processLoop);
-        this.msgProcLock = new Mutex();
-        this.msgProcSig = new Condition(this.msgProcLock);
-
         this.keyPairs = keyPairs; // todo, accepts as arguments
 
         this.routesLock = new Mutex();
@@ -88,7 +79,6 @@ public class Router : Receiver
     {
         this.running = true;
         this.advThread.start();
-        // this.msgProcThread.start();
     }
 
     public void stop()
@@ -100,15 +90,6 @@ public class Router : Receiver
         destroy(this.arp);
     }
 
-    private void stop_msgProc()
-    {
-        this.msgProcLock.lock();
-        this.msgProcSig.notify();
-        this.msgProcLock.unlock();
-
-        this.msgProcThread.join();
-    }
-
     public final LinkManager getLinkMan()
     {
         return cast(LinkManager)this.linkMan;
@@ -117,30 +98,6 @@ public class Router : Receiver
     private string getPublicKey()
     {
         return this.keyPairs[0];
-    }
-
-    private void processLoop()
-    {
-        while(this.running)
-        {
-            this.msgProcLock.lock();
-
-            scope(exit)
-            {
-                this.msgProcLock.unlock();
-            }
-
-            this.msgProcSig.wait();
-
-            // process each message
-            foreach(ProcMesg m; this.msgProcQueue)
-            {
-                process(m.getLink(), m.getData(), m.getLLSource());
-            }
-
-            // clear all
-            this.msgProcQueue.length = 0;
-        }
     }
 
     private void process(Link link, byte[] data, string srcAddr)
