@@ -16,27 +16,43 @@ public class LLInterface : Link
     private Socket peerSock; // make const
     private Thread peerThread;
 
+    private bool running;
+    private Duration wakeTime; // time to wake up to check if we should stop (todo, interrupt would be nice)
+
     this(string interfaceName, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
     {
         // Multicast socket for discovery
         this.mcastAddress = parseAddress(mcastAddr~"%"~interfaceName, mcastPort);
         this.mcastSock = new Socket(AddressFamily.INET6, SocketType.DGRAM, ProtocolType.UDP);
-        this.mcastSock.bind(cast(Address)this.mcastAddress); // todo, defer to later?
-
+        
         // Multicast thread
         this.mcastThread = new Thread(&mcastLoop);
-        this.mcastThread.start();
 
         // Peering socket for transit
         this.peerAddress = parseAddress("::", 0); // todo, query interface addresses using getaddrinfo or something
-                                                  // in order to derive the link-local address of this host
-        writeln(this.peerAddress);        
+                                                  // in order to derive the link-local address of this host      
         this.peerSock = new Socket(AddressFamily.INET6, SocketType.DGRAM, ProtocolType.UDP);
-        this.peerSock.bind(cast(Address)this.peerAddress); // todo, defer to later?
-        writeln(this.peerSock.localAddress());
-
+        
         // Peering thread
         this.peerThread = new Thread(&peerLoop);
+        
+        // todo, we start it on construction (for now)
+        start();
+    }
+
+    public void start()
+    {
+        this.running = true;
+        
+        // Bind sockets
+        this.mcastSock.bind(cast(Address)this.mcastAddress);
+        this.peerSock.bind(cast(Address)this.peerAddress);
+        writeln(this.peerSock.localAddress());
+
+        // Start multicast thread
+        this.mcastThread.start();
+
+        // Start peering thread
         this.peerThread.start();
     }
 
@@ -58,7 +74,7 @@ public class LLInterface : Link
 
     private void mcastLoop()
     {
-        while(true) // todo flag
+        while(this.running) // todo flag
         {
             byte[] buffer = [1];
 
@@ -83,20 +99,25 @@ public class LLInterface : Link
                 writeln("from: ", fromAddr, "bytes: ", buffer);
 
                 // Pass received data on upwards
-                receive(buffer); // todo, pass in fromAddr
+                receive(buffer, fromAddr.toString()); // todo, pass in fromAddr
             }
         }
     }
 
     private void peerLoop()
     {
-        while(true) // todo flag
+        while(this.running) // todo flag
         {
             byte[] buffer;
 
             // this.socket.receiveFrom(buffer, SocketFlags.PEEK|)
             Thread.sleep(dur!("seconds")(100)); 
         }
+    }
+
+    public void stop()
+    {
+        
     }
 
 }
