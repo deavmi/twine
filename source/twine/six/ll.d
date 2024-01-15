@@ -100,6 +100,31 @@ public bool extract6addr_unsafe(sockaddr* a, AddressFamily af, ref ubyte[] addre
     }
 }
 
+public bool getLinkLocalOf(string if_name, ref InterfaceInfo[] if_info)
+{
+    // todo, use predicate version of `getLinkLocal`
+    // when it becomes avaibale
+    InterfaceInfo[] available;
+
+    if(getLinkLocal(available))
+    {
+        foreach(InterfaceInfo if_; available)
+        {
+            if(if_.getName() == if_name)
+            {
+                if_info ~= if_;
+            }
+        }
+
+        return true;
+    }
+    else
+    {
+        return false;    
+    }
+}
+
+// todo, below version should support a name-based predicate
 public bool getLinkLocal(ref InterfaceInfo[] interfaces)
 {
     InterfaceInfo[] initial;
@@ -237,7 +262,7 @@ unittest
 
 
 // note, only does v6 and on link-local specifically
-public bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
+public bool determinedInterfaceAddresses(ref InterfaceInfo[] interfaces)
 {
     import core.sys.posix.sys.socket : AF_INET6;
     import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, in6_addr, uint8_t;
@@ -321,14 +346,22 @@ public class LLInterface : Link
 
     private const InterfaceInfo if_;
 
-    this(InterfaceInfo if_, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
+    this(string interfaceName_, string mcastAddr = "ff02::1", ushort mcastPort = 1024) // should latter two be configurable?
     {
-        // ensure that the interface is IPv6 and link-local
-        // if(if_.getAddress().addressFamily() == AddressFamily.INET6 && if_.getAddress().name().sa_data)
-        // might need sub-object cast
+        // discover link-local addresses on the given interface
+        InterfaceInfo[] linkLocalAddresses;
+        if(!getLinkLocalOf(interfaceName_, linkLocalAddresses))
+        {
+            // todo, add early exit with exception
+            throw new Exception("Failed to check for link-local addresses for interface '"~interfaceName_~"'"); // todo, twine exception
+        }
+        else if(linkLocalAddresses.length == 0)
+        {
+            // todo, handle case of no link local
+            throw new Exception("Interface '"~interfaceName_~"' has no link-local addresses"); // todo, twine exception
+        }
 
-
-        this.if_ = if_;
+        this.if_ = linkLocalAddresses[0];
 
         // Multicast socket for discovery
         this.mcastAddress = parseAddress(mcastAddr~"%"~if_.getName(), mcastPort);
@@ -338,7 +371,6 @@ public class LLInterface : Link
         this.mcastThread = new Thread(&mcastLoop);
 
         // Peering socket for transit
-        writeln("before crash to bind: ", if_.getAddress().toAddrString());
         this.peerAddress = parseAddress(if_.getAddress().toAddrString()~"%"~if_.getName(), 0); // todo, query interface addresses using getaddrinfo or something
                                                   // in order to derive the link-local address of this host      
         this.peerSock = new Socket(AddressFamily.INET6, SocketType.DGRAM, ProtocolType.UDP);
