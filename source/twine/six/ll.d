@@ -6,8 +6,7 @@ import std.socket : Socket, Address, parseAddress, AddressFamily, SocketType, Pr
 import std.socket : SocketFlags, MSG_TRUNC, MSG_PEEK;
 import std.stdio;
 
-import core.sys.posix.sys.socket : AF_INET6;
-import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, in6_addr, uint8_t;
+
 
 import std.string : fromStringz;
 import std.socket : Internet6Address;
@@ -56,9 +55,111 @@ public struct InterfaceInfo
     }
 }
 
+public bool getIfAddrs(ref InterfaceInfo[] interfaces)
+{
+    import twine.six.crap : getifaddrs, ifaddrs; //, sockaddr, sockaddr_in6, in6_addr, uint8_t;
+
+    ifaddrs* ifs;
+    if(getifaddrs(&ifs) == 0)
+    {
+        scope(exit)
+        {
+            // free allocated list
+            import twine.six.crap : freeifaddrs;
+            freeifaddrs(ifs);
+        }
+
+        // ensure there is a first entry (just to be safe)
+        ifaddrs* curIf = ifs;
+        while(curIf !is null)
+        {
+            // extract interface name (we must copy, this doesn't allocate by itself)
+            string name = cast(string)fromStringz(curIf.ifa_name).dup;
+
+            // get the sockaddr (base struct)
+            import twine.six.crap : sockaddr;
+            sockaddr* saddr = curIf.ifa_addr;
+
+            // if "UNSPEC" -> then null, it means the associuated family has no address (think of a tun adapter)
+            if(saddr !is null)
+            {
+                // determine the type (so we can type cast to get sub-struct)
+                import twine.six.crap : sa_family_t;
+                import core.sys.posix.sys.socket : AF_INET, AF_INET6;
+                sa_family_t family = saddr.sa_family;
+
+                // AF_INET6
+                if(family == AF_INET6)
+                {
+                    // cast to sockaddr_in6 sub-struct
+                    import twine.six.crap : sockaddr_in6, in6_addr, in_port_t;
+                    sockaddr_in6* saddrSix = cast(sockaddr_in6*)saddr;
+
+                    // extract address and port
+                    in6_addr in_addr = saddrSix.sin6_addr;
+                    // I couldn't get to this so we will cast over it as the struct is single member
+                    // and said member is fixed size of 16 bytes of ubyte (according to the docs)
+                    // addr.s6_addr; 
+                    // copy over (static array)
+                    ubyte[16] addr = cast(ubyte[16])in_addr;
+
+
+                    // simple enough - alias to `uint16_t`
+                    in_port_t in_port = saddrSix.sin6_port;
+                    ushort port = in_port;
+
+
+                    // construct Internet6ADdress
+                    import std.socket : Internet6Address;
+                    interfaces ~= InterfaceInfo(name, new Internet6Address(addr, port));
+                }
+                // AF_INET
+                else if(family == AF_INET)
+                {
+
+                }
+                // todo, for now unsupported
+                else
+                {
+
+                }
+            }
+
+
+            // move to next interface in linked-list
+            curIf = curIf.ifa_next;
+        }
+
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+
+version(unittest)
+{
+    import niknaks.debugging : dumpArray;
+    import std.stdio : writeln;
+}
+
+unittest
+{
+    InterfaceInfo[] interfaces;
+    assert(getIfAddrs(interfaces));
+    writeln(dumpArray!(interfaces));
+    
+}
+
+
 // note, only does v6 and on link-local specifically
 public bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
 {
+    import core.sys.posix.sys.socket : AF_INET6;
+    import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, in6_addr, uint8_t;
+
     ifaddrs* interfaceAddresses;
     int stat = getifaddrs(&interfaceAddresses);
     if(stat == 0)
@@ -73,7 +174,7 @@ public bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
         {
             writeln("ifa_ptr rn: ", cast(void*)interfaceAddresses);
 
-            string interfaceName = cast(string)fromStringz(interfaceAddresses.ifa_name);
+            string interfaceName = cast(string)fromStringz(interfaceAddresses.ifa_name).dup;
             writeln("name: "~interfaceName);
 
             sockaddr* sAddr = interfaceAddresses.ifa_addr;
@@ -90,13 +191,10 @@ public bool determineInterfaceAddresses(ref InterfaceInfo[] interfaces)
                     // cast to extended sub-object/struct
                     sockaddr_in6* s6Addr = cast(sockaddr_in6*)sAddr;
 
-                    
-                    writeln("scope id: ", s6Addr.sin6_scope_id);
-                    // if(s6Addr.sin6_scope_id == 18 || true) // todo, this feels broke, might need to manually check addresses
-                    
-                    // obtain the 16 bytes (the contained element of in6_addr
-                    // is a singular array of 16 ubytes), meaning we can cast
-                    // direct on it
+                    // fixme, i want to go to the struct within `in6_addr` (it's
+                    // first and only member) but type is not found). The solution
+                    // for now is direct recast - it's always according to current API
+                    // 16 bytes
                     in6_addr addrBytesC = s6Addr.sin6_addr;
                     ubyte[16] arr = cast(ubyte[16])addrBytesC;
                     writeln(arr);
