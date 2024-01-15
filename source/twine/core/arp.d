@@ -63,7 +63,7 @@ public class ArpManager : Receiver
      * Returns: `true` if resolution succeeded, `false`
      * otherwise (the `entry` is left untouched)
      */
-    public bool resolve(string networkAddr, Link onLink, ref ArpEntry entry)
+    private bool resolve(string networkAddr, Link onLink, ref ArpEntry entry)
     {
         ArpEntry resolvedEntry = resolve(Target(networkAddr, onLink));
 
@@ -80,6 +80,17 @@ public class ArpManager : Receiver
         }
     }
     
+    /** 
+     * Attempts to resolve the link-layer address of
+     * the provided layer-3 address over the provided
+     * link returning an optional as the result.
+     *
+     * Params:
+     *   networkAddr = the layer-3 address to resolve
+     * by
+     *   onLink = the `Link` to resolve over
+     * Returns: an `Optional!(ArpEntry)`
+     */
     public Optional!(ArpEntry) resolve(string networkAddr, Link onLink)
     {
         Optional!(ArpEntry) opt;
