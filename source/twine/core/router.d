@@ -17,6 +17,8 @@ public class Router : Receiver
 {
     private bool running;
 
+    // todo, make use of this in the future with a message processing thread
+    // offload, from on-link processing
     private struct ProcMesg
     {
         private Link link;
@@ -129,17 +131,6 @@ public class Router : Receiver
 
     public void onReceive(Link link, byte[] data, string srcAddr)
     {
-        // this.msgProcLock.lock();
-
-        // scope(exit)
-        // {
-        //     this.msgProcLock.unlock();
-        // }
-
-        // // append to message queue and wake up
-        // this.msgProcQueue ~= ProcMesg(link, data);
-        // this.msgProcSig.notify();
-
         process(link, data, srcAddr);
     }
 
@@ -679,6 +670,8 @@ unittest
     writeln(dumpArray!(r1_routes));
     writeln(dumpArray!(r2_routes));
     writeln(dumpArray!(r3_routes));
+
+    assert(r1.sendData(cast(byte[])"ABBA poespoes", "p2Pub"));
 
     // todo, check routes here
 }
