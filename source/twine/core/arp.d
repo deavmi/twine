@@ -151,6 +151,7 @@ public class ArpManager : Receiver
             logger.warn("Arp failed for target: ", target);
             return ArpEntry.empty();
         }
+        // on success
         else
         {
             ArpEntry arpEntry = ArpEntry(addr, llAddr);
