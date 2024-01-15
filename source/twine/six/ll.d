@@ -55,6 +55,83 @@ public struct InterfaceInfo
     }
 }
 
+// todo, add saddr-to-6 method (assumes you checked the af_inet)
+import std.socket : sockaddr;
+public bool extract6addr_unsafe(sockaddr* a, AddressFamily af, ref ubyte[] address) @nogc
+{
+    if(a !is null)
+    {
+        if(a.sa_family == af)
+        {
+            // IPv6 address extraction
+            if(af == AddressFamily.INET6)
+            {
+                // we can assuredly sub-struct cast because we know sa_family is INET6
+                import twine.six.crap : sockaddr_in6, in6_addr;
+                sockaddr_in6* saddr6 = cast(sockaddr_in6*)a;
+
+                // note for some reason, we can't access it like that
+                // doesn't matter as it is a struct with signle element
+                // so we can just case to the element therein
+                // of which is an `uint8_t[16]` (in D this is `ubyte[16]`)
+                in6_addr addr = saddr6.sin6_addr;
+                // addr.s6_addr; 
+                ubyte[16] extractedAddr = cast(ubyte[16])addr;
+
+                // place into destination
+                address = extractedAddr;
+
+                return true;
+            }
+            // Unsupported family
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+}
+
+public bool getLinkLocal(ref InterfaceInfo[] interfaces)
+{
+    InterfaceInfo[] initial;
+    if(getIfAddrs(initial))
+    {
+        foreach(InterfaceInfo if_; initial)
+        {
+            if(if_.getAddress().addressFamily() == AddressFamily.INET6)
+            {
+                import std.socket : sockaddr;
+                sockaddr* saddr = cast(sockaddr*)if_.getAddress().name;
+
+                // we can assuredly sub-struct cast because we know sa_family is INET6
+                import twine.six.crap : sockaddr_in6, in6_addr;
+                sockaddr_in6* saddr6 = cast(sockaddr_in6*)saddr;
+                // note for some reason, we can't access it like that
+                // doesn't matter as it is a struct with signle element
+                // so we can just case to the element therein
+                // of which is an `uint8_t[16]` (in D this is `ubyte[16]`)
+                in6_addr addr = saddr6.sin6_addr;
+                // addr.s6_addr; 
+                ubyte[16] extractedAddr = cast(ubyte[16])addr;
+            }
+        }
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 public bool getIfAddrs(ref InterfaceInfo[] interfaces)
 {
     import twine.six.crap : getifaddrs, ifaddrs; //, sockaddr, sockaddr_in6, in6_addr, uint8_t;
