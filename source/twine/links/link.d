@@ -19,7 +19,7 @@ public abstract class Link
     
     // A link driver must call this when it
     // has new data
-    public final void receive(byte[] recv) // todo, src addr?
+    public final void receive(byte[] recv, string srcAddr) // todo, src addr?
     {
         // To avoid potential design issues
         // lock, copy, unlock and then emit
@@ -241,7 +241,7 @@ version(unittest)
 
         public void test_deliver(byte[] data)
         {
-            this.receive(data);
+            this.receive(data, getAddress());
         }
 
         public void test_begin()
