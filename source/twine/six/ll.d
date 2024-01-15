@@ -19,7 +19,7 @@ import std.conv : to;
  *   addr6 = the address (in big endian)
  * Returns: `true` if so, `false` otherwise
  */
-private bool isLinkLocal(ubyte[16] addr6)
+private bool isLinkLocal(ubyte[16] addr6) @nogc
 {
     return addr6[0] == 0xfe && addr6[1] == 0x80;
 }
