@@ -49,7 +49,7 @@ public abstract class Link
 
         foreach(Receiver endpoint; cpy)
         {
-            endpoint.onReceive(this, recv);
+            endpoint.onReceive(this, recv, srcAddr);
         }
     }
 
@@ -129,7 +129,7 @@ public abstract class Link
 // interface
 public interface Receiver
 {
-    public void onReceive(Link source, byte[] recv);
+    public void onReceive(Link source, byte[] recv, string srcAddr);
 }
 
 
