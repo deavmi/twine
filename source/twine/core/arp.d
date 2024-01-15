@@ -6,6 +6,7 @@ import niknaks.containers;
 import twine.links.link : Link, Receiver;
 import twine.core.wire;
 import twine.logging;
+import niknaks.functional : Optional;
 
 private struct Target
 {
@@ -78,8 +79,6 @@ public class ArpManager : Receiver
             return true;
         }
     }
-
-    import niknaks.functional : Optional;
     
     public Optional!(ArpEntry) resolve(string networkAddr, Link onLink)
     {
@@ -440,16 +439,18 @@ unittest
     ArpManager man = new ArpManager();
 
     // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
-    ArpEntry resolution;
-    assert(man.resolve("hostA:l3", dummyLink, resolution));
-    assert(resolution.llAddr() == mappings["hostA:l3"]);
+    Optional!(ArpEntry) entry = man.resolve("hostA:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostA:l3"]);
 
     // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
-    assert(man.resolve("hostB:l3", dummyLink, resolution));
-    assert(resolution.llAddr() == mappings["hostB:l3"]);
+    entry = man.resolve("hostB:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostB:l3"]);
 
     // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
-    assert(man.resolve("hostC:l3", dummyLink, resolution) == false);
+    entry = man.resolve("hostC:l3", dummyLink);
+    assert(entry.isPresent() == false);
 
     // shutdown the dummy link to get the unittest to end
     dummyLink.stop();
