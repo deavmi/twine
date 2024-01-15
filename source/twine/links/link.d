@@ -154,7 +154,7 @@ version(unittest)
             this.lock = new Mutex();
         }
 
-        public void onReceive(Link source, byte[] recv)
+        public void onReceive(Link source, byte[] recv, string srcAddr)
         {
             this.lock.lock();
 
@@ -163,7 +163,7 @@ version(unittest)
                 this.lock.unlock();
             }
 
-            writeln("DummyRecv [link: '", source, ", data: ", recv, "]");
+            writeln("DummyRecv [link: '", source, ", data: ", recv, ", llSrc: "~srcAddr~"]");
             this.received ~= ReceivePack(source, recv);
         }
 
