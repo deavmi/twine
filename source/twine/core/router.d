@@ -171,7 +171,7 @@ public class Router : Receiver
         process(link, data);
     }
 
-    private void dumpRoutes()
+    public void dumpRoutes()
     {
         import std.stdio : writeln;
 
