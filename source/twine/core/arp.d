@@ -79,6 +79,22 @@ public class ArpManager : Receiver
         }
     }
 
+    import niknaks.functional : Optional;
+    
+    public Optional!(ArpEntry) resolve(string networkAddr, Link onLink)
+    {
+        Optional!(ArpEntry) opt;
+        ArpEntry resolvedEntry;
+
+        // if succeeded resolution
+        if(resolve(networkAddr, onLink, resolvedEntry))
+        {
+            opt = Optional!(ArpEntry)(resolvedEntry);
+        }
+
+        return opt;
+    }
+
     private ArpEntry resolve(Target target)
     {
         return this.table.get(target);
