@@ -12,9 +12,25 @@ import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6
 import std.string : fromStringz;
 import std.socket : Internet6Address;
 
+/** 
+ * Determines if an IPv6 address is link-local
+ *
+ * Params:
+ *   addr6 = the address
+ * Returns: `true` if so, `false` otherwise
+ */
 private bool isLinkLocal(ubyte[16] addr6)
 {
     return addr6[0] == 0xfe && addr6[1] == 0x80;
+}
+
+/**
+ * Tests link-locality
+ */
+unittest
+{
+    assert(isLinkLocal([254, 128, 0, 0, 0, 0, 0, 0, 38, 56, 97, 106, 72, 146, 206, 225]));
+    assert(!isLinkLocal([2, 1, 108, 86, 249, 213, 183, 165, 143, 66, 177, 171, 158, 14, 81, 105]));
 }
 
 private bool determineInterfaceAddresses(ref string[] kak)
