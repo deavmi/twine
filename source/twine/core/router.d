@@ -36,7 +36,13 @@ public struct UserDataPkt
     }
 }
 
+import std.functional : toDelegate;
 public alias DataCallbackDelegate = void delegate(UserDataPkt);
+
+private void nopHandler(UserDataPkt u)
+{
+    logger.dbg("NOP handler: ", u);
+}
 
 public class Router : Receiver
 {
@@ -86,7 +92,10 @@ public class Router : Receiver
     // arp management
     private ArpManager arp;
 
-    this(string[] keyPairs)
+    // incoming message handler
+    private const DataCallbackDelegate messageHandler;
+
+    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler))
     {
         this.linkMan = new LinkManager(this);
         this.arp = new ArpManager();
@@ -94,7 +103,8 @@ public class Router : Receiver
         this.advThread = new Thread(&advertiseLoop);
         this.advFreq = dur!("seconds")(5);
 
-        this.keyPairs = keyPairs; // todo, accepts as arguments
+        this.keyPairs = keyPairs;
+        this.messageHandler = messageHandler;
 
         this.routesLock = new Mutex();
 
@@ -127,11 +137,6 @@ public class Router : Receiver
         return this.keyPairs[0];
     }
 
-    public void attachDataCallback()
-    {
-
-    }
-
     private void process(Link link, byte[] data, string srcAddr)
     {
         logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
@@ -153,6 +158,10 @@ public class Router : Receiver
                 case MType.ARP:
                     handle_ARP(link, srcAddr, recvMesg);
                     break;
+                // Handle DATA messages
+                case MType.DATA:
+                    handle_DATA(link, srcAddr, recvMesg);
+                    break;
                 default:
                     logger.warn("Unsupported message type: '", mType, "'");
             }
@@ -161,6 +170,17 @@ public class Router : Receiver
         {
             logger.warn("Received message from '", link, "' but failed to decode");
         }
+    }
+
+    private void handle_DATA(Link link, string srcAddr, Message recvMesg)
+    {
+        UserDataPkt udPkt = UserDataPkt("kak", cast(byte[])"kakakkakakakak");
+        messageHandler(udPkt);
+
+        // todo, decode
+
+        // if matching me then run handler
+        // else, if forwarding enabled then forward
     }
 
     private void handle_ARP(Link link, string srcAddr, Message recvMesg)
