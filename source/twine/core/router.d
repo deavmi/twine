@@ -13,6 +13,31 @@ import core.sync.condition : Condition;
 import niknaks.functional : Optional;
 import twine.core.arp;
 
+// for data destined to yourself (todo, in future maybe have dest?)
+public struct UserDataPkt
+{
+    private string src;
+    private byte[] data;
+
+    this(string src, byte[] data)
+    {
+        this.src = src;
+        this.data = data;
+    }
+
+    public string getSrc()
+    {
+        return this.src;
+    }
+
+    public byte[] getPayload()
+    {
+        return this.data;
+    }
+}
+
+public alias DataCallbackDelegate = void delegate(UserDataPkt);
+
 public class Router : Receiver
 {
     private bool running;
@@ -102,6 +127,11 @@ public class Router : Receiver
         return this.keyPairs[0];
     }
 
+    public void attachDataCallback()
+    {
+
+    }
+
     private void process(Link link, byte[] data, string srcAddr)
     {
         logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
@@ -119,6 +149,10 @@ public class Router : Receiver
                 case MType.ADV:
                     handle_ADV(link, recvMesg);
                     break;
+                // Handle ARP requests
+                case MType.ARP:
+                    handle_ARP(link, srcAddr, recvMesg);
+                    break;
                 default:
                     logger.warn("Unsupported message type: '", mType, "'");
             }
@@ -126,6 +160,57 @@ public class Router : Receiver
         else
         {
             logger.warn("Received message from '", link, "' but failed to decode");
+        }
+    }
+
+    private void handle_ARP(Link link, string srcAddr, Message recvMesg)
+    {
+        Arp arpMesg;
+        if(recvMesg.decodeAs(arpMesg))
+        {
+            if(arpMesg.isRequest())
+            {
+                string requestedL3Addr;
+                if(arpMesg.getRequestedL3(requestedL3Addr))
+                {
+                    logger.dbg("Got ARP request for L3-addr '", requestedL3Addr, "'");
+
+                    // only answer if the l3 matches mine (I won't do the dirty work of others)
+                    if(requestedL3Addr == getPublicKey())
+                    {
+                        Arp arpRep;
+                        if(arpMesg.makeResponse(link.getAddress(), arpRep))
+                        {
+                            Message mesgOut;
+                            if(toMessage(arpRep, mesgOut))
+                            {
+                                link.transmit(mesgOut.encode(), srcAddr);
+                            }
+                            else
+                            {
+                                logger.error("failure to encode message out for arp response");
+                            }
+                        }
+                        else
+                        {
+                            logger.error("failure to generate arp response message");
+                        }
+                    }
+                    // todo, hehe - proxy arp lookup?!?!?!?! unless
+                    else
+                    {
+                        logger.dbg("I won't answer ARP request for l3 addr which does not match mine: '"~requestedL3Addr~"' != '"~getPublicKey()~"'");
+                    }
+                }
+            }
+            else
+            {
+                logger.warn("Someone sent you an ARP response, that's retarded - router discards, arp manager would pick it up");
+            }
+        }
+        else
+        {
+            logger.warn("Received mesg marked as ARP but was not arp actually");
         }
     }
 
