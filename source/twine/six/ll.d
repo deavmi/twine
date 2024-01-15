@@ -340,7 +340,7 @@ public class LLInterface : Link
     public override void transmit(byte[] xmit, string addr)
     {
         // we could send via any socket probably, just destination address is iportant
-        this.mcastSock.sendTo(xmit, parseAddress(addr));
+        this.peerSock.sendTo(xmit, parseAddress(addr));
     }
 
     public override void broadcast(byte[] xmit)
