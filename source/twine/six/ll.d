@@ -12,6 +12,11 @@ import twine.six.crap : getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6
 import std.string : fromStringz;
 import std.socket : Internet6Address;
 
+private bool isLinkLocal(ubyte[16] addr6)
+{
+    return addr6[0] == 0xfe && addr6[1] == 0x80;
+}
+
 private bool determineInterfaceAddresses(ref string[] kak)
 {
     ifaddrs* interfaceAddresses;
