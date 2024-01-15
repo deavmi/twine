@@ -11,6 +11,7 @@ import twine.core.route : Route;
 import core.sync.mutex : Mutex;
 import core.sync.condition : Condition;
 import niknaks.functional : Optional;
+import twine.core.arp;
 
 public class Router : Receiver
 {
@@ -50,6 +51,7 @@ public class Router : Receiver
     private Mutex msgProcLock;
     private Condition msgProcSig;
 
+    // link management
     private const LinkManager linkMan; // const, never should be changed besides during construction
     private Thread advThread;
     private Duration advFreq;
@@ -59,9 +61,13 @@ public class Router : Receiver
     private Route[string] routes;
     private Mutex routesLock;
 
+    // arp management
+    private ArpManager arp;
+
     this(string[] keyPairs)
     {
         this.linkMan = new LinkManager(this);
+        this.arp = new ArpManager();
         
         this.advThread = new Thread(&advertiseLoop);
         this.advFreq = dur!("seconds")(5);
@@ -179,9 +185,65 @@ public class Router : Receiver
         process(link, data, srcAddr);
     }
 
-    public void sendData(ubyte[] payload, string to)
+    public bool sendData(byte[] payload, string to)
     {
+        // lookup route to host
+        Optional!(Route) route = findRoute(to);
 
+        // found route
+        if(route.isPresent())
+        {
+            // construct data packet to send
+            Data dataPkt; // todo, if any crypto it would be with `to` NOT `via` (which is imply the next hop)
+            if(!Data.makeDataPacket(getPublicKey(), to, payload, dataPkt))
+            {
+                logger.dbg("data packet encoding failed");
+                return false;
+            }
+
+            // encode
+            Message mesgOut;
+            if(!toMessage(dataPkt, mesgOut))
+            {
+                logger.dbg("encode error");
+                return false;
+            }
+
+            Route r = route.get();
+
+            // is data to self
+            if(r.isSelfRoute())
+            {
+                // get the link and place reception on it
+                r.link().receive(mesgOut.encode(), to);
+
+                return true;
+            }
+            // to someone else
+            else
+            {
+                // resolve link-layer address of next hop
+                Optional!(ArpEntry) ae = this.arp.resolve(r.gateway(), r.link());
+
+                if(ae.isPresent())
+                {
+                    // transmit over link to the destination ll-addr (as indiacted by arp)
+                    r.link().transmit(mesgOut.encode(), ae.get().llAddr());
+                    return true;
+                }
+                else
+                {
+                    logger.error("ARP failed for next hop '", r.gateway(), "' when sending to dst '"~r.destination()~"'");
+                    return false;
+                }
+            }
+        }
+        // route not found
+        else
+        {
+            logger.error("no route to host '"~to~"', cannot send");
+            return false;
+        }
     }
 
     /** 
