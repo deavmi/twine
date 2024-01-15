@@ -99,6 +99,22 @@ public struct Data
         this.dst = dst;
     }
 
+    public static bool makeDataPacket(string source, string destination, byte[] payload, ref Data dataOut)
+    {
+        // needs a valid srcAddr and dstAddr
+        if(source.length && destination.length)
+        {
+            Data dataPkt = Data(payload, source, destination);
+            dataOut = dataPkt;
+            return true;
+        }
+        // needs both of these
+        else
+        {
+            return false;    
+        }
+    }
+
     public ubyte getTTL()
     {
         return this.ttl;
