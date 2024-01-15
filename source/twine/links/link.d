@@ -53,7 +53,7 @@ public abstract class Link
         }
     }
 
-    private final auto getRecvCnt()
+    public final auto getRecvCnt()
     {
         this.receiverLock.lock();
 
