@@ -795,19 +795,34 @@ unittest
 
     
 
-    
+    void r1_msh_handler(UserDataPkt m)
+    {
+
+    }
+
+    UserDataPkt r1_to_r2_reception;
+    void r2_msh_handler(UserDataPkt m)
+    {
+        r1_to_r2_reception = m;
+    }
+
+    UserDataPkt r3_to_r2_reception;
+    void r3_msh_handler(UserDataPkt m)
+    {
+        r3_to_r2_reception = m;
+    }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"]);
+    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msh_handler);
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"]);
+    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msh_handler);
     r2.getLinkMan().addLink(p2_to_p1);
     r2.start();
 
-    Router r3 = new Router(["p3Pub", "p3Priv"]);
+    Router r3 = new Router(["p3Pub", "p3Priv"], &r3_msh_handler);
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 
@@ -848,11 +863,17 @@ unittest
 
     // r1 -> r2 (on-link forwarding decision)
     assert(r1.sendData(cast(byte[])"ABBA poespoes", "p2Pub"));
-    // todo, check reception
+    // todo, use condvar to wait aaasuredly
+    Thread.sleep(dur!("seconds")(2));
+    // check reception of message
+    assert(r1_to_r2_reception.getPayload() == "ABBA poespoes");
 
     // r3 -> r2 (forwarded via r1)
     assert(r3.sendData(cast(byte[])"ABBA naainaai", "p2Pub"));
-    // todo, check reception
+    // todo, use condvar to wait aaasuredly
+    Thread.sleep(dur!("seconds")(2));
+    // check reception of message
+    assert(r3_to_r2_reception.getPayload() == "ABBA naainaai");
 
     // todo, self send
     // todo, check reception
