@@ -42,6 +42,7 @@ public alias DataCallbackDelegate = void delegate(UserDataPkt);
 private void nopHandler(UserDataPkt u)
 {
     logger.dbg("NOP handler: ", u);
+    logger.dbg("NOP handler: ", cast(string)u.getPayload());
 }
 
 public class Router : Receiver
@@ -172,15 +173,84 @@ public class Router : Receiver
         }
     }
 
+    private bool isForwarding = true; // todo, make togglable during runtime
+
+    private void attemptForward(Data dataPkt)
+    {
+        // lookup route to host
+        string to = dataPkt.getDst();
+        Optional!(Route) route = findRoute(to);
+
+        // found route
+        if(route.isPresent())
+        {
+            Route ro = route.get();
+
+            // get the next-hop's link-layer address
+            Optional!(ArpEntry) ae = arp.resolve(ro.gateway(), ro.link());
+            
+            // found arp entry for gateway
+            if(ae.isPresent())
+            {
+                // get link-layer address of next-hop
+                string via_ll = ae.get().llAddr();
+
+                Message mesgOut;
+                if(toMessage(dataPkt, mesgOut))
+                {
+                    ro.link().transmit(mesgOut.encode(), via_ll);
+                    logger.dbg("forwarded to nexthop at lladdr '", via_ll, "'");
+                }
+                else
+                {
+                    logger.error("Data encode failed when attempting forwarding");
+                }
+            }
+            // not found
+            else
+            {
+                logger.error("Could not forward data packet '", dataPkt, "' via gateway '", ro.gateway(), "' as arp failed");
+            }
+        }
+        // route not found
+        else
+        {
+            logger.error("no route to host '"~to~"', cannot send");
+        }
+    }
+
     private void handle_DATA(Link link, string srcAddr, Message recvMesg)
     {
-        UserDataPkt udPkt = UserDataPkt("kak", cast(byte[])"kakakkakakakak");
-        messageHandler(udPkt);
+        Data dataPkt;
+        if(recvMesg.decodeAs(dataPkt))
+        {
+            string uSrc = dataPkt.getSrc();
+            string uDst = dataPkt.getDst();
+            byte[] payload = dataPkt.getPayload();
 
-        // todo, decode
+            // if packet is destined to me
+            if(uDst == getPublicKey())
+            {
+                logger.dbg("packet '", dataPkt, "' is destined to me");
 
-        // if matching me then run handler
-        // else, if forwarding enabled then forward
+                // run handler
+                messageHandler(UserDataPkt(uSrc, payload));
+            }
+            // else, if forwarding enabled then forward
+            else if(isForwarding)
+            {
+                attemptForward(dataPkt);
+            }
+            // niks
+            else
+            {
+                logger.warn("Received packet '", dataPkt, "' which not destined to me, but forwarding is disabled");
+            }
+        }
+        else
+        {
+            logger.warn("Received mesg marked as ARP but was not arp actually");
+        }
     }
 
     private void handle_ARP(Link link, string srcAddr, Message recvMesg)
@@ -776,7 +846,16 @@ unittest
     writeln(dumpArray!(r2_routes));
     writeln(dumpArray!(r3_routes));
 
+    // r1 -> r2 (on-link forwarding decision)
     assert(r1.sendData(cast(byte[])"ABBA poespoes", "p2Pub"));
+    // todo, check reception
+
+    // r3 -> r2 (forwarded via r1)
+    assert(r3.sendData(cast(byte[])"ABBA naainaai", "p2Pub"));
+    // todo, check reception
+
+    // todo, self send
+    // todo, check reception
 
     // todo, check routes here
 }
