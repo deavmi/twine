@@ -129,6 +129,21 @@ public struct Data
     {
         this.ttl--;
     }
+
+    public byte[] getPayload()
+    {
+        return this.data;
+    }
+
+    public string getSrc()
+    {
+        return this.src;
+    }
+
+    public string getDst()
+    {
+        return this.dst;
+    }
 }
 
 public struct ArpReply
