@@ -338,8 +338,9 @@ public class Router : Receiver
             // is data to self
             if(r.isSelfRoute())
             {
-                // get the link and place reception on it
-                r.link().receive(mesgOut.encode(), to);
+                // our link is null, we don't send to ourselves - rather
+                // we call the user handler right now
+                messageHandler(UserDataPkt(to, payload));
 
                 return true;
             }
@@ -793,6 +794,11 @@ unittest
     p1_to_p3.connect(p3_to_p1, p3_to_p1.getAddress());
     p3_to_p1.connect(p1_to_p3, p1_to_p3.getAddress());
 
+    UserDataPkt r1_to_r1_reception;
+    void r1_msg_handler(UserDataPkt m)
+    {
+        r1_to_r1_reception = m;
+    }
 
     UserDataPkt r1_to_r2_reception, r3_to_r2_reception;
     void r2_msg_handler(UserDataPkt m)
@@ -808,7 +814,7 @@ unittest
     }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"]);
+    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler);
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
@@ -870,8 +876,13 @@ unittest
     // check reception of message
     assert(r3_to_r2_reception.getPayload() == "ABBA naainaai");
 
-    // todo, self send
-    // todo, check reception
+    // r1 -> r1 (self-route)
+    assert(r1.sendData(cast(byte[])"ABBA kakkak", "p1Pub"));
+    // todo, use condvar to wait aaasuredly
+    Thread.sleep(dur!("seconds")(2));
+    // check reception of message
+    assert(r1_to_r1_reception.getPayload() == "ABBA kakkak");
+
 
     // todo, check routes here
 }
