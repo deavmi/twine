@@ -793,36 +793,31 @@ unittest
     p1_to_p3.connect(p3_to_p1, p3_to_p1.getAddress());
     p3_to_p1.connect(p1_to_p3, p1_to_p3.getAddress());
 
-    
 
-    void r1_msh_handler(UserDataPkt m)
+    UserDataPkt r1_to_r2_reception, r3_to_r2_reception;
+    void r2_msg_handler(UserDataPkt m)
     {
-
-    }
-
-    UserDataPkt r1_to_r2_reception;
-    void r2_msh_handler(UserDataPkt m)
-    {
-        r1_to_r2_reception = m;
-    }
-
-    UserDataPkt r3_to_r2_reception;
-    void r3_msh_handler(UserDataPkt m)
-    {
-        r3_to_r2_reception = m;
+        if(m.getSrc() == "p1Pub")
+        {
+            r1_to_r2_reception = m;
+        }
+        else if(m.getSrc() == "p3Pub")
+        {
+            r3_to_r2_reception = m;
+        }
     }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msh_handler);
+    Router r1 = new Router(["p1Pub", "p1Priv"]);
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msh_handler);
+    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler);
     r2.getLinkMan().addLink(p2_to_p1);
     r2.start();
 
-    Router r3 = new Router(["p3Pub", "p3Priv"], &r3_msh_handler);
+    Router r3 = new Router(["p3Pub", "p3Priv"]);
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 
