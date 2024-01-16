@@ -4,6 +4,7 @@
 	],
 	"copyright": "Copyright © 2024, Tristan B. Velloza Kildaire",
 	"dependencies": {
+		"crypto": "~>0.2.18",
 		"gogga": "~>2.2.1",
 		"msgpack-d": "~>1.0.5",
 		"niknaks": "~>0.8.1"
