@@ -142,6 +142,8 @@ public class LLInterface : Link
 
             // this.socket.receiveFrom(buffer, SocketFlags.PEEK|)
             Thread.sleep(dur!("seconds")(100)); 
+
+            // todo, implement dis
         }
     }
 
