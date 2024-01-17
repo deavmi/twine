@@ -269,15 +269,15 @@ Optional!(ArpEntry) resolve(string networkAddr, Link onLink)
 The way this method works is that it will return an `Optional!(ArpEntry)`,
 meaning that you can test to see if the arp resolution process succeeded
 or failed (i.e. timed-out for example) using code that looks akin
-to this:
+to what shall follow.
 
-### Example
+---
 
 I have prepared an example which can illustrate the usage of the `ArpManager`.
 In fact this example is part of a unittest which tests the various scenarios
 that can occur with the manager itself.
 
-#### Mock links
+### Mock links
 
 Firstly we setup a pseudo-link. This is a sub-class of the `Link` class
 which is specifically configured to respond **only** to ARP requests
@@ -305,7 +305,7 @@ mappings["hostB:l3"] = "hostB:l2";
 ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
 ```
 
-#### Resolution
+### Resolution
 
 We then must create an `ArpManager` we can use for the resolution process:
 
@@ -328,6 +328,8 @@ In the above case the mapping succeeds and we get an `ArpEntry` returned
 from `entry.get()`, upon which I extract the link-layer address by calling
 `llAddr()` on it and comparing it to what I expected, `mappings["hostA:l3"]` -
 which maps to `hostA:l2`.
+
+---
 
 We do a similar example for the other host:
 
@@ -352,3 +354,13 @@ assert(entry.isPresent() == false);
 
 This resolution fails because our `ArpRespondingLink`, our _dummy link_,
 doesn't respond to mapping requests of the kind $(host_{B_{l3}}, dummyLink)$.
+
+### Shutting it down
+
+We need to shut down the `ArpManager` when we shut down the whole system,
+this is then accomplished by running its destructor:
+
+```{.d}
+// shut down the arp manager
+destroy(man);
+```
