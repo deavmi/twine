@@ -1,3 +1,6 @@
+/** 
+ * Address resolution protocol
+ */
 module twine.core.arp;
 
 import core.sync.mutex : Mutex;
@@ -61,6 +64,9 @@ private struct Target
     }
 }
 
+/** 
+ * The arp management sub-system
+ */
 public class ArpManager : Receiver
 {
     private Mutex waitLock;
@@ -382,33 +388,71 @@ unittest
 import std.datetime.stopwatch : StopWatch, AutoStart;
 import std.datetime : Duration, dur;
 
-
+/** 
+ * An ARP entry mapping a network-layer
+ * address to a link-layer address
+ */
 public struct ArpEntry
 {
     private string l3Addr;
     private string l2Addr;
 
+    /** 
+     * Constructs a new `ArpEntry`
+     * with the given network0layer
+     * address and link-layer address
+     *
+     * Params:
+     *   networkAddr = the network-layer
+     * address
+     *   llAddr = the link-layer address
+     */
     this(string networkAddr, string llAddr)
     {
         this.l3Addr = networkAddr;
         this.l2Addr = llAddr;
     }
 
+    /** 
+     * Retrieves the network-layer
+     * address
+     *
+     * Returns: the address
+     */
     public string networkAddr()
     {
         return this.l3Addr;
     }
 
+    /** 
+     * Retrieves the link-layer
+     * address
+     *
+     * Returns: the address
+     */
     public string llAddr()
     {
         return this.l2Addr;
     }
 
+    /** 
+     * If this entry is empty
+     *
+     * Returns: `true` if both
+     * layer addresses are empty,
+     * `false` otherwise
+     */
     public bool isEmpty()
     {
         return this.l3Addr == "" && this.l2Addr == "";
     }
 
+    /** 
+     * Constructs a new `ArpEntry`
+     * with empty addresses
+     *
+     * Returns: the `ArpEntry`
+     */
     public static ArpEntry empty()
     {
         return ArpEntry("", "");
