@@ -8,22 +8,53 @@ import twine.core.wire;
 import twine.logging;
 import niknaks.functional : Optional;
 
+/** 
+ * Describes an ARP request with
+ * the networ-address and the `Link`
+ * on which the resolution is to
+ * be done
+ */
 private struct Target
 {
     private string networkAddr;
     private Link onLink;
 
+    /** 
+     * Constructs a new target
+     *
+     * Params:
+     *   networkAddr = the network
+     * address
+     *   link = the `Link` the
+     * request is to be resolved
+     * over
+     */
     this(string networkAddr, Link link)
     {
         this.networkAddr = networkAddr;
         this.onLink = link;
     }
 
+    /** 
+     * Retrieve's this target's
+     * network address of which
+     * is to be used as part of
+     * the request
+     *
+     * Returns: the network address
+     */
     public string getAddr()
     {
         return this.networkAddr;
     }
 
+    /** 
+     * Retrieves this target's
+     * link upon which resolution
+     * is intended to take place
+     * 
+     * Returns: the `Link`
+     */
     public Link getLink()
     {
         return this.onLink;
