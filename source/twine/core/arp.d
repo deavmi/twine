@@ -75,6 +75,15 @@ public class ArpManager : Receiver
 
     private CacheMap!(Target, ArpEntry) table;
 
+    /** 
+     * Constructs a new `ArpManager` with
+     * the given sweep interval
+     *
+     * Params:
+     *   sweepInterval = how often the arp
+     * table should be checked for expired
+     * entries
+     */
     this(Duration sweepInterval = dur!("seconds")(60))
     {
         this.table = new CacheMap!(Target, ArpEntry)(&regen, sweepInterval);
