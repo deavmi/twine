@@ -128,7 +128,7 @@ public class ArpManager : Receiver
 
         logger.dbg("attach done");
 
-        // todo, send request
+        // generate the message and send request
         Arp arpReq = Arp.newRequest(addr);
         Message msg;
         if(toMessage(arpReq, msg))
