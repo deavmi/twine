@@ -471,7 +471,7 @@ public class Router : Receiver
             {
                 // if matched route is the same as incoming route
                 // then simply refresh the current one
-                if(cr == route)
+                if(*cr == route)
                 {
                     cr.refresh();
                 }
