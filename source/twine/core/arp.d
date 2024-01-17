@@ -68,6 +68,11 @@ public class ArpManager : Receiver
 
     private Duration timeout = dur!("seconds")(5); // todo, configurabel
 
+    // map l3Addr -> llAddr
+    private string[string] addrIncome; // note also, these should be cleared after some time
+    // probably else it could leak if we receive ARP responses sent to us but of which were
+    // never requested
+
     private CacheMap!(Target, ArpEntry) table;
 
     this(Duration sweepInterval = dur!("seconds")(60))
@@ -191,9 +196,23 @@ public class ArpManager : Receiver
         }
     }
 
-    // map l3Addr -> llAddr
-    private string[string] addrIncome;
-
+    
+    /** 
+     * Waits on a condition variable until we have
+     * retrieved the link-layer address which we
+     * requested. It also will time-out after
+     * the configured time if no matching reply
+     * is found.
+     *
+     * This wakes up periodically as well.
+     *
+     * Params:
+     *   l3Addr = the network-layer address
+     *   llAddrOut = the link-layer address
+     * Returns: `true` if we could resolve the
+     * link-layer address, `false` if we timed-out
+     * in waiting for it
+     */
     private bool waitForLLAddr(string l3Addr, ref string llAddrOut)
     {
         StopWatch timer = StopWatch(AutoStart.yes);
@@ -224,6 +243,15 @@ public class ArpManager : Receiver
         return false; // timed out
     }
 
+    /** 
+     * Called by the thread which has an ARP response
+     * it would like to pass off to the thread waiting
+     * on the condition variable
+     *
+     * Params:
+     *   l3Addr = the network layer address
+     *   llAddr = the link-layer address
+     */
     private void placeLLAddr(string l3Addr, string llAddr)
     {
         this.waitLock.lock();
@@ -238,6 +266,15 @@ public class ArpManager : Receiver
         this.addrIncome[l3Addr] = llAddr;
     }
 
+    /** 
+     * Called by the `Link` which received a packet which
+     * may be of interest to us
+     *
+     * Params:
+     *   src = the `Link` from where the packet came from
+     *   data = the packet's data
+     *   srcAddr = the link-layer source address
+     */
     public override void onReceive(Link src, byte[] data, string srcAddr)
     {
         Message recvMesg;
@@ -278,17 +315,14 @@ public class ArpManager : Receiver
         }
     }
     
+    /** 
+     * Shuts down the manager
+     */
     ~this()
     {
         // todo, double check but yes this should be fine, I believe I added checks for this?
         // as in what if another thread is trying to resolve and we use this? how does
         // the regeneration function treat it
-        destroy(this.table);
-    }
-
-    // todo, how to activate?
-    public void test_stop()
-    {
         destroy(this.table);
     }
 }
@@ -504,7 +538,5 @@ unittest
     dummyLink.stop();
 
     // shutdown the arp manager
-    // man.test_stop();
-
     destroy(man);
 }
