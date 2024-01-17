@@ -466,7 +466,10 @@ version(unittest)
     import core.sync.mutex : Mutex;
     import core.sync.condition : Condition;
     import std.conv : to;
+}
 
+version(unittest)
+{
     // a dummy link which will respond with
     // arp replies using the provided map
     // of l3Addr -> l2Addr
