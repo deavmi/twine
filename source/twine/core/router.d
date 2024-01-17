@@ -443,6 +443,24 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Checks if the given route should be
+     * installed and, if so, installs it.
+     *
+     * If the incoming route is to a destination
+     * not yet present then it is installed,
+     * if to an already-present destination
+     * then metric is used to break the tie.
+     *
+     * If the route matches an existing one
+     * by everything then we don't install
+     * the new one (because it's identical)
+     * but rather reset the timer of the existing
+     * one.
+     *
+     * Params:
+     *   route = the new route to install
+     */
     private void installRoute(Route route)
     {
         this.routesLock.lock();
