@@ -327,6 +327,49 @@ public class ArpManager : Receiver
     }
 }
 
+/**
+ * This tests the `ArpManager`'s ability
+ * to handle arp requests and responses
+ *
+ * We make use of a dummy `Link` which
+ * we provide with mappings of layer 3
+ * to layer 2 addresses such that when
+ * an ARP request comes in we can respond
+ * with the relevant details as such
+ */
+unittest
+{
+    // Map some layer 3 -> layer 2 addresses
+    string[string] mappings;
+    mappings["hostA:l3"] = "hostA:l2";
+    mappings["hostB:l3"] = "hostB:l2";
+
+    // create a dummy link that responds with those mappings
+    ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
+
+    ArpManager man = new ArpManager();
+
+    // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
+    Optional!(ArpEntry) entry = man.resolve("hostA:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostA:l3"]);
+
+    // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
+    entry = man.resolve("hostB:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostB:l3"]);
+
+    // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
+    entry = man.resolve("hostC:l3", dummyLink);
+    assert(entry.isPresent() == false);
+
+    // shutdown the dummy link to get the unittest to end
+    dummyLink.stop();
+
+    // shutdown the arp manager
+    destroy(man);
+}
+
 import std.datetime.stopwatch : StopWatch, AutoStart;
 import std.datetime : Duration, dur;
 
@@ -496,47 +539,4 @@ version(unittest)
             this.ingressSig.notify();
         }
     }
-}
-
-/**
- * This tests the `ArpManager`'s ability
- * to handle arp requests and responses
- *
- * We make use of a dummy `Link` which
- * we provide with mappings of layer 3
- * to layer 2 addresses such that when
- * an ARP request comes in we can respond
- * with the relevant details as such
- */
-unittest
-{
-    // Map some layer 3 -> layer 2 addresses
-    string[string] mappings;
-    mappings["hostA:l3"] = "hostA:l2";
-    mappings["hostB:l3"] = "hostB:l2";
-
-    // create a dummy link that responds with those mappings
-    ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
-
-    ArpManager man = new ArpManager();
-
-    // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
-    Optional!(ArpEntry) entry = man.resolve("hostA:l3", dummyLink);
-    assert(entry.isPresent());
-    assert(entry.get().llAddr() == mappings["hostA:l3"]);
-
-    // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
-    entry = man.resolve("hostB:l3", dummyLink);
-    assert(entry.isPresent());
-    assert(entry.get().llAddr() == mappings["hostB:l3"]);
-
-    // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
-    entry = man.resolve("hostC:l3", dummyLink);
-    assert(entry.isPresent() == false);
-
-    // shutdown the dummy link to get the unittest to end
-    dummyLink.stop();
-
-    // shutdown the arp manager
-    destroy(man);
 }
