@@ -71,4 +71,21 @@ public struct Route
     {
         return this.dst;
     }
+
+    // two routes are considered the same if they
+    // are to the same destination using the same
+    // gateway, distance and link
+    public static isSameRoute(Route r1, Route r2)
+    {
+
+        return r1.destination() == r2.destination() &&
+               r1.gateway() == r2.gateway() && 
+               r1.distance() == r2.distance() &&
+               r1.link() == r2.link();
+    }
+
+    public bool opEquals(Route rhs)
+    {
+        return isSameRoute(this, rhs);
+    }
 }
