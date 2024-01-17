@@ -10,6 +10,8 @@ import twine.links.link : Link, Receiver;
 import twine.core.wire;
 import twine.logging;
 import niknaks.functional : Optional;
+import std.datetime.stopwatch : StopWatch, AutoStart;
+import std.datetime : Duration, dur;
 
 /** 
  * Describes an ARP request with
@@ -384,9 +386,6 @@ unittest
     // shutdown the arp manager
     destroy(man);
 }
-
-import std.datetime.stopwatch : StopWatch, AutoStart;
-import std.datetime : Duration, dur;
 
 /** 
  * An ARP entry mapping a network-layer
