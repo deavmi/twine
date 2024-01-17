@@ -467,6 +467,15 @@ public class Router : Receiver
             {
                 this.routes[route.destination()] = route;
             }
+            else
+            {
+                // if matched route is the same as incoming route
+                // then simply refresh the current one
+                if(cr == route)
+                {
+                    cr.refresh();
+                }
+            }
         }
     }
 
