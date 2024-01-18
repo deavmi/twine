@@ -8,14 +8,14 @@ another address, the link-layer address, which we will call $addr_{LL}$.
 ## Why do we need this?
 
 The reason that we require this $addr_{LL}$ is because when we need
-to send data to a hsot we do so over a link which is indicated in the
+to send data to a host we do so over a link which is indicated in the
 routing table for said packet.
 
 However, links don't speak the same network-layer protocol as twine -
 they speak whatever protocol they implement - i.e. Ethernet via `LIInterface`
 or the in-memory `PipedLink`. Needless to say there is also always a
-requirement of such a mapping mechansim because several links may be
-backed by a different link-layer protocols in their `Link` impelemntation
+requirement of such a mapping mechanism because several links may be
+backed by a different link-layer protocols in their `Link` implementation
 and therefore we cannot marry ourselves to only one link-layer protocol
 - _we need something dynamic_.
 
@@ -23,10 +23,10 @@ and therefore we cannot marry ourselves to only one link-layer protocol
 
 We now head over to the technical side of things. Before we jump directly
 into an analysis of the source code it is worth considering what this
-procedure means in a mematheical sense because at a high-level this is
+procedure means in a mathematical sense because at a high-level this is
 what the code is modeled on.
 
-If we have a router $$r_1$$ which has a set of links $L= \{ l_1, l_2 \}$
+If we have a router $r_1$ which has a set of links $L= \{ l_1, l_2 \}$
 and we wanted to send a packet to a host addresses $h_1$ and $h_2$ which
 are accessible over $l_1$ and $l_2$ respectively then the mapping function
 would appear as such:
@@ -47,13 +47,13 @@ $$
 
 Therefore we discover that we have the above mapping function which requires
 the network-layer $h_i$ address you wish to resolve and the link $l_i$ over
-which theresolution must be done, this then mapping to a single scalar -
+which the resolution must be done, this then mapping to a single scalar -
 the link-layer address, $addr_{LL_i}$.
 
 ## Implementation
 
 We will begin the examination of the code at the deepest level which models
-this mathematical function earlier, first, afterwhich we will then consider
+this mathematical function earlier, first, after which we will then consider
 the code which calls it and how that works.
 
 ### The entry type
@@ -120,7 +120,7 @@ logger.dbg("attach done");
 This provides us with a callback method which will be called by the `Link`
 whenever it receives _any_ traffic. It is worth noting that such a method
 will not run on the thread concerning the code we are looking at now but
-rather on the therad of the `Link`'s - we will discuss later how will filter
+rather on the thread of the `Link`'s - we will discuss later how will filter
 it and deliver the result to us, _but for now - back to the code_.
 
 
@@ -163,7 +163,7 @@ bool status = waitForLLAddr(addr, llAddr);
 ```
 
 As you can see we have this call to a method called `waitForLLAddr(addr, llAddr)`.
-This method will block for us and can wake up if it is singaled to by
+This method will block for us and can wake up if it is signaled to by
 the callback method running on the `Link`'s thread (as mentioned previously).
 
 ----
@@ -200,10 +200,10 @@ return false; // timed out
 Because it is implemented using a condition variable, it could potentially
 miss a signal from the calling `notify()` if we only call `wait()` on our
 thread _after_ the link's thread has called `notify()`. Therefore, we make
-our `wait()` wakeup every now and then by using a timed-wait, to check if
+our `wait()` wake up every now and then by using a timed-wait, to check if
 the data has been filled in by the other thread.
 
-Second of all, what we do after retyurning from `wait(Duration)` is check if
+Second of all, what we do after retrying from `wait(Duration)` is check if
 the _requested network-layer address_ has been resolved or not - this is that
 filtering I was mentioning earlier. This is important as we don't want to
 wake up for _any_ ARP response, but only the one which matches our `addr`
@@ -259,7 +259,7 @@ instantiation - therefore it works as expected.
 
 We have now discussed the gritty internals which aid us in creating requests,
 awaiting replies and then returning the matched entry. We now must move over
-to the publically facing API of the `ArpManager`. This really just contains
+to the publicly facing API of the `ArpManager`. This really just contains
 a single method:
 
 ```{.d}
