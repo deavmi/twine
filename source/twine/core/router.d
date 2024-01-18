@@ -38,6 +38,7 @@ public struct UserDataPkt
 
 import std.functional : toDelegate;
 public alias DataCallbackDelegate = void delegate(UserDataPkt);
+public alias DataCallbackFunction = void function(UserDataPkt);
 
 private void nopHandler(UserDataPkt u)
 {
@@ -45,40 +46,20 @@ private void nopHandler(UserDataPkt u)
     logger.dbg("NOP handler: ", cast(string)u.getPayload());
 }
 
+/** 
+ * The router which is responsible for
+ * sending routing advertisements,
+ * receiving routes advertised by others,
+ * managing the routing table and
+ * providing a way to send, receive
+ * packets for the user.
+ *
+ * It also manages the forwarding of
+ * packets
+ */
 public class Router : Receiver
 {
     private bool running;
-
-    // todo, make use of this in the future with a message processing thread
-    // offload, from on-link processing
-    private struct ProcMesg
-    {
-        private Link link;
-        private byte[] data;
-        private string llSrcAddr;
-
-        this(Link from, byte[] recv, string llSrcAddr)
-        {
-            this.link = from;
-            this.data = recv;
-            this.llSrcAddr = llSrcAddr;
-        }
-
-        public Link getLink()
-        {
-            return this.link;
-        }
-
-        public byte[] getData()
-        {
-            return this.data;
-        }
-
-        public string getLLSource()
-        {
-            return this.llSrcAddr;
-        }
-    }
 
     // link management
     private const LinkManager linkMan; // const, never should be changed besides during construction
@@ -96,13 +77,14 @@ public class Router : Receiver
     // incoming message handler
     private const DataCallbackDelegate messageHandler;
 
-    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler))
+    // todo, set advFreq back to 5 seconds
+    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
     {
         this.linkMan = new LinkManager(this);
         this.arp = new ArpManager();
         
         this.advThread = new Thread(&advertiseLoop);
-        this.advFreq = dur!("seconds")(5);
+        this.advFreq = advFreq;
 
         this.keyPairs = keyPairs;
         this.messageHandler = messageHandler;
@@ -111,6 +93,12 @@ public class Router : Receiver
 
         // add self route
         installSelfRoute();
+    }
+
+    // todo, set advFreq back to 5 seconds
+    this(string[] keyPairs, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
+    {
+        this(keyPairs, toDelegate(messageHandler), advFreq);
     }
 
     public void start()
@@ -258,6 +246,8 @@ public class Router : Receiver
         Arp arpMesg;
         if(recvMesg.decodeAs(arpMesg))
         {
+            logger.dbg("arpMesg: ", arpMesg);
+
             if(arpMesg.isRequest())
             {
                 string requestedL3Addr;
@@ -274,6 +264,7 @@ public class Router : Receiver
                             Message mesgOut;
                             if(toMessage(arpRep, mesgOut))
                             {
+                                logger.dbg("Sending out ARP response: ", arpRep);
                                 link.transmit(mesgOut.encode(), srcAddr);
                             }
                             else
@@ -719,11 +710,11 @@ unittest
     p2.connect(p1, p1.getAddress());
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"]);
+    Router r1 = new Router(["p1Pub", "p1Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r1.getLinkMan().addLink(p1);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"]);
+    Router r2 = new Router(["p2Pub", "p2Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r2.getLinkMan().addLink(p2);
     r2.start();
 
@@ -841,16 +832,16 @@ unittest
     }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler);
+    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler, dur!("seconds")(5));
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler);
+    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler, dur!("seconds")(5));
     r2.getLinkMan().addLink(p2_to_p1);
     r2.start();
 
-    Router r3 = new Router(["p3Pub", "p3Priv"]);
+    Router r3 = new Router(["p3Pub", "p3Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 
