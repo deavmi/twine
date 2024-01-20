@@ -13,23 +13,49 @@ import core.sync.condition : Condition;
 import niknaks.functional : Optional;
 import twine.core.arp;
 
-// for data destined to yourself (todo, in future maybe have dest?)
+/** 
+ * This represents data passed
+ * from the router to a user
+ * data handler when data destined
+ * to your node arrives
+ */
 public struct UserDataPkt
 {
     private string src;
     private byte[] data;
 
+    /** 
+     * Constructs a new `UserDataPkt`
+     * with the provided network-layer
+     * source address and payload
+     *
+     * Params:
+     *   src = network-layer address
+     *   data = packet payload
+     */
     this(string src, byte[] data)
     {
         this.src = src;
         this.data = data;
     }
 
+    /** 
+     * Retrieve's the network-layer
+     * address of this packet
+     *
+     * Returns: the address
+     */
     public string getSrc()
     {
         return this.src;
     }
 
+    /** 
+     * Retrieve's the packet's
+     * payload
+     *
+     * Returns: the payload
+     */
     public byte[] getPayload()
     {
         return this.data;
