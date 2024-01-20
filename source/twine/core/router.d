@@ -669,6 +669,13 @@ public class Router : Receiver
         installRoute(selfR);
     }
 
+    /** 
+     * Returns a list of all
+     * the currently installled
+     * routes
+     *
+     * Returns: a `Route[]`
+     */
     private Route[] getRoutes()
     {
         this.routesLock.lock();
