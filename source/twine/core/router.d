@@ -532,6 +532,11 @@ public class Router : Receiver
         return false;
     }
 
+    /** 
+     * Prints out all the routes
+     * currently in the routing
+     * table
+     */
     public void dumpRoutes()
     {
         import std.stdio : writeln;
