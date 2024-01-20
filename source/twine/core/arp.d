@@ -303,6 +303,7 @@ public class ArpManager : Receiver
                 Arp arpMesg;
                 if(recvMesg.decodeAs(arpMesg))
                 {
+                    logger.dbg("arpMesg, received: ", arpMesg, "from: ", srcAddr);
                     ArpReply reply;
                     if(arpMesg.getReply(reply))
                     {
