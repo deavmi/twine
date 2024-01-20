@@ -390,6 +390,18 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Called whenever we receive a packet
+     * from one of the links associated
+     * with this router
+     *
+     * Params:
+     *   link = the `Link` from which the
+     * packet came from
+     *   data = the packet itself
+     *   srcAddr = the link-layer source
+     * address of the packet
+     */
     public void onReceive(Link link, byte[] data, string srcAddr)
     {
         process(link, data, srcAddr);
