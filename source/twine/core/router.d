@@ -319,6 +319,23 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Handles a packet which contains
+     * ARP data in it. It detects
+     * firstly if it is an ARP request
+     * (as responses are ignored) and
+     * then, if so, it checks that the
+     * requested network-layer address
+     * matches our public key - and
+     * then proceeds to answer it.
+     *
+     * Params:
+     *   link = the `Link` from which
+     * this packet was received
+     *   srcAddr = the link-layer
+     * source address
+     *   recvMesg = the received message
+     */
     private void handle_ARP(Link link, string srcAddr, Message recvMesg)
     {
         Arp arpMesg;
