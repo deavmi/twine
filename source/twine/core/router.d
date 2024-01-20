@@ -611,7 +611,15 @@ public class Router : Receiver
         }
     }
 
-    // Handles all sort of advertisement messages
+    /** 
+     * Handles incoming advertisement
+     * messages
+     *
+     * Params:
+     *   link = the `Link` from which
+     * the message was received
+     *   recvMesg = the message itself
+     */
     private void handle_ADV(Link link, Message recvMesg)
     {
         Advertisement advMesg;
