@@ -170,6 +170,17 @@ public class Router : Receiver
         return this.keyPairs[0];
     }
 
+    /** 
+     * Process a given payload from a given
+     * link and source link-layer address
+     *
+     * Params:
+     *   link = the `Link` from which the
+     * packet was received
+     *   data = the data itself
+     *   srcAddr = the link-layer address
+     * which is the source of this packet
+     */
     private void process(Link link, byte[] data, string srcAddr)
     {
         logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
@@ -207,6 +218,14 @@ public class Router : Receiver
 
     private bool isForwarding = true; // todo, make togglable during runtime
 
+    /** 
+     * Given a packet this will
+     * attempt to forward it
+     *
+     * Params:
+     *   dataPkt = the packet as
+     * a `User`
+     */
     private void attemptForward(Data dataPkt)
     {
         // lookup route to host
@@ -251,6 +270,21 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Handles a packet that contains user data.
+     *
+     * Depending on who it was destined to this
+     * will either call a user data packet handler
+     * or it will attempt to forward it (if forwarding
+     * is enabled)
+     *
+     * Params:
+     *   link = the `Link` from which the packet
+     * was received
+     *   srcAddr = the link-layer source address of
+     * the packet
+     *   recvMesg = the received `Message`
+     */
     private void handle_DATA(Link link, string srcAddr, Message recvMesg)
     {
         Data dataPkt;
