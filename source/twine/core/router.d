@@ -657,6 +657,12 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Installs a route to ourselves
+     * which has a distance of `0`,
+     * a destination of our public
+     * key and no link
+     */
     private void installSelfRoute()
     {
         Route selfR = Route(getPublicKey(), null, 0);
