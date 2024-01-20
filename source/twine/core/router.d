@@ -407,6 +407,17 @@ public class Router : Receiver
         process(link, data, srcAddr);
     }
 
+    /** 
+     * Sends a piece of data to the given
+     * network-layer address
+     *
+     * Params:
+     *   payload = the data to send
+     *   to = the destination network-layer
+     * address
+     * Returns: `true` if sending succeeded
+     * but if not then `false`
+     */
     public bool sendData(byte[] payload, string to)
     {
         // lookup route to host
