@@ -127,12 +127,18 @@ public class Router : Receiver
         this(keyPairs, toDelegate(messageHandler), advFreq);
     }
 
+    /** 
+     * Starts the router
+     */
     public void start()
     {
         this.running = true;
         this.advThread.start();
     }
 
+    /** 
+     * Stops the router
+     */
     public void stop()
     {
         this.running = false;
@@ -142,11 +148,23 @@ public class Router : Receiver
         destroy(this.arp);
     }
 
+    /** 
+     * Returns the link manager
+     * instance of this router
+     *
+     * Returns: the `LinkManager`
+     */
     public final LinkManager getLinkMan()
     {
         return cast(LinkManager)this.linkMan;
     }
 
+    /** 
+     * Returns the public key associated
+     * with this router
+     *
+     * Returns: the public key
+     */
     private string getPublicKey()
     {
         return this.keyPairs[0];
