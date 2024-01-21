@@ -4,7 +4,10 @@ import twine.links.link;
 import std.datetime.stopwatch : StopWatch, AutoStart;
 import std.datetime : Duration, dur;
 
-public struct Route
+/** 
+ * Represents a route
+ */
+public const struct Route
 {
     private string dstKey; // destination
     private Link ll; // link to use
@@ -14,13 +17,38 @@ public struct Route
     private StopWatch lifetime;
     private Duration expirationTime;
 
-    // direct route (reachable over the given link)
+    /** 
+     * Constructs a route to a destination
+     * over a given link with a given metric.
+     *
+     * The destination of this route is
+     * directly reachable over the link.
+     *
+     * Params:
+     *   dst = the destination network-layer
+     * address
+     *   link = the `Link`
+     *   distance = the distance
+     */
     this(string dst, Link link, ubyte distance)
     {
         this(dst, link, dst, distance);
     }
 
-    // indirect route (reachable via the `via`)
+    /** 
+     * Constructs a route to a destination
+     * over a link with a given metric.
+     *
+     * This also let's you set the next-hop
+     * gateway that should be used.
+     *
+     * Params:
+     *   dst = the destination network-layer
+     * address
+     *   link = the `Link`
+     *   via = the next-hop gateway's address
+     *   distance = the distance
+     */
     this(string dst, Link link, string via, ubyte distance, Duration expirationTime = dur!("seconds")(60))
     {
         this.dstKey = dst;
@@ -32,6 +60,17 @@ public struct Route
         this.expirationTime = expirationTime;
     }
 
+    /** 
+     * Is this route direct? As
+     * in the destination is
+     * directly reachable via
+     * the gateway (i.e. the
+     * destination matches the
+     * gateway)
+     *
+     * Returns: `true` if so,
+     * otherwise `false`
+     */
     public bool isDirect()
     {
         return this.dstKey == this.viaKey; // todo, should we ever use cmp?
