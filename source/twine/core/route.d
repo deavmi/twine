@@ -76,26 +76,60 @@ public struct Route
         return this.dstKey == this.viaKey; // todo, should we ever use cmp?
     }
 
+    /** 
+     * Checks if this route
+     * has expired
+     *
+     * Returns: `true` if so,
+     * `false` otherwise
+     */
     public bool hasExpired()
     {
         return this.lifetime.peek() > this.expirationTime;
     }
 
+    /** 
+     * Resets the expiration
+     * timer for this route
+     */
     public void refresh()
     {
         this.lifetime.reset();
     }
 
+    /** 
+     * Retrieves this route's
+     * destination address
+     *
+     * Returns: the address
+     */
     public string destination()
     {
         return this.dstKey;
     }
 
+    /** 
+     * Retrieves this route's
+     * associated link
+     *
+     * Returns: a `Link`, or
+     * `null` if this is a 
+     * self-route
+     */
     public Link link()
     {
         return this.ll;
     }
 
+    /** 
+     * Retirns whether or not
+     * this route is a self-route
+     * (i.e. the link set was
+     * `null`)
+     *
+     * Returns: `true` if so,
+     * otherwise `false`
+     */
     public bool isSelfRoute()
     {
         return this.ll is null;
