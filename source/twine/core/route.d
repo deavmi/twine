@@ -135,20 +135,40 @@ public struct Route
         return this.ll is null;
     }
 
+    /** 
+     * Retrieves the gateway
+     * of this route
+     *
+     * Returns: the gateway's
+     * address
+     */
     public string gateway()
     {
         return this.viaKey;
     }
 
+    /** 
+     * Retrieves the distance
+     *
+     * Returns: the distance
+     * metric
+     */
     public ubyte distance()
     {
         return this.dst;
     }
 
-    // two routes are considered the same if they
-    // are to the same destination using the same
-    // gateway, distance and link
-    public static isSameRoute(Route r1, Route r2)
+    /** 
+     * Compares two routes with one
+     * another
+     *
+     * Params:
+     *   r1 = first route
+     *   r2 = second route
+     * Returns: `true` if the routes
+     * match exactly, otherwise `false`
+     */
+    public static bool isSameRoute(Route r1, Route r2)
     {
 
         return r1.destination() == r2.destination() &&
@@ -157,6 +177,15 @@ public struct Route
                r1.link() == r2.link();
     }
 
+    /** 
+     * Compares this `Route` with
+     * another
+     *
+     * Params:
+     *   rhs = the other route
+     * Returns: `true` if the routes
+     * are identical, `false` otherwise
+     */
     public bool opEquals(Route rhs)
     {
         return isSameRoute(this, rhs);
