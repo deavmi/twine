@@ -246,8 +246,6 @@ we received.
 
 #### Catching responses
 
-TODO: Add this
-
 I have mentioned that the thread which waits for a matching ARP response
 to come in (the one which calls the `wait(Duration)`) above. So then,
 the question is - which thread is the one calling `notify()` on the
