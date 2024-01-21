@@ -7,7 +7,7 @@ import std.datetime : Duration, dur;
 /** 
  * Represents a route
  */
-public const struct Route
+public struct Route
 {
     private string dstKey; // destination
     private Link ll; // link to use
