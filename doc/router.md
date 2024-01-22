@@ -56,7 +56,9 @@ public struct Route
 
 ### Methods
 
-Some important methods that we have:
+Some important methods that we have are the following (there are more but these are ones
+that hold under certain conditions that are not so obvious, therefore I would like to
+explicitly mention them):
 
 | Method                 | Description                                                      |
 |------------------------|------------------------------------------------------------------|
