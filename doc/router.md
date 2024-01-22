@@ -54,148 +54,27 @@ public struct Route
 }
 ```
 
+### Methods
+
+Some important methods that we have:
+
+| Method                 | Description                                                      |
+|------------------------|------------------------------------------------------------------|
+| `isDirect()`           | Returns `true` when $gateway = destination$, otherwise `false`   |
+| `isSelfRoute()`        | Returns `true` if the `Link` is `null`, otherwise `false`        |
+
+### Route equality
+
+Lastly, route equality is something that is checked as part of the router's code, so we
+should probably show how we have overrode the `opEquals(Route)` method. This is the method
+that is called when two `Route` structs are compared for equality using the `==` operator.
+
+Our implementation goes as follows:
+
 ```{.numberLines .d}
-
-    /** 
-     * Constructs a route to a destination
-     * over a given link with a given metric.
-     *
-     * The destination of this route is
-     * directly reachable over the link.
-     *
-     * Params:
-     *   dst = the destination network-layer
-     * address
-     *   link = the `Link`
-     *   distance = the distance
-     */
-    this(string dst, Link link, ubyte distance)
-    {
-        this(dst, link, dst, distance);
-    }
-
-    /** 
-     * Constructs a route to a destination
-     * over a link with a given metric.
-     *
-     * This also let's you set the next-hop
-     * gateway that should be used.
-     *
-     * Params:
-     *   dst = the destination network-layer
-     * address
-     *   link = the `Link`
-     *   via = the next-hop gateway's address
-     *   distance = the distance
-     */
-    this(string dst, Link link, string via, ubyte distance, Duration expirationTime = dur!("seconds")(60))
-    {
-        this.dstKey = dst;
-        this.ll = link;
-        this.viaKey = via;
-        this.dst = distance;
-
-        this.lifetime = StopWatch(AutoStart.yes);
-        this.expirationTime = expirationTime;
-    }
-
-    /** 
-     * Is this route direct? As
-     * in the destination is
-     * directly reachable via
-     * the gateway (i.e. the
-     * destination matches the
-     * gateway)
-     *
-     * Returns: `true` if so,
-     * otherwise `false`
-     */
-    public bool isDirect()
-    {
-        return this.dstKey == this.viaKey; // todo, should we ever use cmp?
-    }
-
-    /** 
-     * Checks if this route
-     * has expired
-     *
-     * Returns: `true` if so,
-     * `false` otherwise
-     */
-    public bool hasExpired()
-    {
-        return this.lifetime.peek() > this.expirationTime;
-    }
-
-    /** 
-     * Resets the expiration
-     * timer for this route
-     */
-    public void refresh()
-    {
-        this.lifetime.reset();
-    }
-
-    /** 
-     * Retrieves this route's
-     * destination address
-     *
-     * Returns: the address
-     */
-    public string destination()
-    {
-        return this.dstKey;
-    }
-
-    /** 
-     * Retrieves this route's
-     * associated link
-     *
-     * Returns: a `Link`, or
-     * `null` if this is a 
-     * self-route
-     */
-    public Link link()
-    {
-        return this.ll;
-    }
-
-    /** 
-     * Retirns whether or not
-     * this route is a self-route
-     * (i.e. the link set was
-     * `null`)
-     *
-     * Returns: `true` if so,
-     * otherwise `false`
-     */
-    public bool isSelfRoute()
-    {
-        return this.ll is null;
-    }
-
-    /** 
-     * Retrieves the gateway
-     * of this route
-     *
-     * Returns: the gateway's
-     * address
-     */
-    public string gateway()
-    {
-        return this.viaKey;
-    }
-
-    /** 
-     * Retrieves the distance
-     *
-     * Returns: the distance
-     * metric
-     */
-    public ubyte distance()
-    {
-        return this.dst;
-    }
+public struct Route
+{
+    ...
 
     /** 
      * Compares two routes with one
