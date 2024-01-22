@@ -688,6 +688,28 @@ public class Router : Receiver
         return this.routes.values.dup;
     }
 
+    private void routeSweep()
+    {
+        this.routesLock.lock();
+
+        scope(exit)
+        {
+            this.routesLock.unlock();
+        }
+
+        // TODO: Expiration here
+        Route[] new_ros;
+        foreach(Route co; this.routes)
+        {
+            if(!co.hasExpired())
+            {
+                new_ros ~= co;
+            }
+        }
+
+        this.routes = new_ros;
+    }
+    
     /** 
      * Sends out modified routes from the routing
      * table (with us as the `via`) on an interval
@@ -697,6 +719,9 @@ public class Router : Receiver
     {
         while(this.running)
         {
+            // TODO: Add route expiration check here
+            routeSweep();
+
             // advertise to all links
             Link[] selected = getLinkMan().getLinks();
             logger.info("Advertising to ", selected.length, " many links");
