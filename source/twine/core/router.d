@@ -697,17 +697,16 @@ public class Router : Receiver
             this.routesLock.unlock();
         }
 
-        // TODO: Expiration here
-        Route[] new_ros;
-        foreach(Route co; this.routes)
+        foreach(string destination; this.routes.keys())
         {
-            if(!co.hasExpired())
+            Route cro = this.routes[destination];
+
+            if(cro.hasExpired())
             {
-                new_ros ~= co;
+                this.routes.remove(destination);
+                logger.warn("Expired route '", cro, "'");
             }
         }
-
-        this.routes = new_ros;
     }
     
     /** 
