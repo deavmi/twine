@@ -12,10 +12,10 @@ public struct Route
     private string dstKey; // destination
     private Link ll; // link to use
     private string viaKey; // gateway (can be empty)
-    private ubyte dst;
+    private ubyte dst; // distance
 
-    private StopWatch lifetime;
-    private Duration expirationTime;
+    private StopWatch lifetime; // timer
+    private Duration expirationTime; // maximum lifetime
 
     /** 
      * Constructs a route to a destination
