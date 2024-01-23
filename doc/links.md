@@ -5,6 +5,37 @@ So-called _links_ are _receivers_ are terms referred to throughout the documenta
 and understanding what they are and how they relate to each other is important for what
 is to follow.
 
+## The `Receiver`
+
+A _receiver_ is a relatively simple type, the interface is defined as follows:
+
+```{.numberLines .d}
+/** 
+ * A subscriber could be a router that wants
+ * to subscribe to data coming in from this
+ * interface
+ */
+public interface Receiver
+{
+    /** 
+     * On reception of the provided data from
+     * the given link-layer address over
+     * the given `Link`
+     *
+     * Params:
+     *   source = the source `Link`
+     *   recv = the received data
+     *   srcAddr = the source link-layer address
+     */
+    public void onReceive(Link source, byte[] recv, string srcAddr);
+}
+```
+
+As you can probably understand from the just of it, it is basically a handler for _ingress_
+traffic whereby the first argument is the data itself and the second must be the link-layer
+address the traffic is sourced from. Any class which implements the `Receiver` interface may
+be (as you will see later) attached to a `Link` such that it can have data passed to it.
+
 ## The `Link`
 
 A _Link_ is provides us with a method to send data to a destination link-layer address
@@ -51,11 +82,19 @@ Well, you will want to make this data available to any of the `Receiver`(s) whic
 |------------------------------------------|-------------------------------------------------------------------------------------------|
 | `receive(byte[] recv, string srcAddr)`   | This is to be called when the `Link` sub-class (implementation) has network-layer traffic to provide  |
 
-Note that the `srcAddr` must contain the network-layer source address.
+Calling this method iterates over every attached `Receiver` and calls their respective `onReceive(...)` methods.
+
+Note: that the `srcAddr` must contain the network-layer source address.
 
 ### Abstract methods
 
-TODO: Talk about what needs to be overridemn
+There are a few more methods to take note of, these are not available as an already-implemented set of methods in
+the `Link` class, and hence must be overriden.
+
+#### Implementing your driver... _again_
+
+Whilst the usage of the aforementioned `receive(byte[], string)` method had to do with processing _ingress_ traffic, these methods require
+an implementation for handling _egress_ traffic.
 
 | Method name                              | Description                                                                               |
 |------------------------------------------|-------------------------------------------------------------------------------------------|
@@ -63,3 +102,4 @@ TODO: Talk about what needs to be overridemn
 | `void broadcast(byte[] xmit)`            | Link-implementation specific for driver to broadcast to all hosts on its broadcast domain |
 | `string getAddress()`                    | Link-implementation specific for driver to report its address                             |
 
+Note: The last method, `getAddress()`, must return the `Link`'s link-layer address.
