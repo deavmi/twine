@@ -12,14 +12,23 @@ public abstract class Link
     private SList!(Receiver) receivers;
     private Mutex receiverLock;
 
+    /** 
+     * Constructs a new `Link`
+     */
     this()
     {
         this.receiverLock = new Mutex();
     }
     
-    // A link driver must call this when it
-    // has new data
-    public final void receive(byte[] recv, string srcAddr) // todo, src addr?
+    /** 
+     * A link driver must call this when it
+     * has new data
+     *
+     * Params:
+     *   recv = the received bytes
+     *   srcAddr = the link-layer source address
+     */
+    public final void receive(byte[] recv, string srcAddr)
     {
         // To avoid potential design issues
         // lock, copy, unlock and then emit
@@ -53,6 +62,12 @@ public abstract class Link
         }
     }
 
+    /** 
+     * Returns the number of attaches
+     * receivers
+     * 
+     * Returns: the count
+     */
     public final auto getRecvCnt()
     {
         this.receiverLock.lock();
@@ -65,6 +80,16 @@ public abstract class Link
         return walkLength(this.receivers[]);
     }
 
+    /** 
+     * Attaches the given receiver.
+     *
+     * Will not attach it if
+     * already attached
+     *
+     * Params:
+     *   receiver = the `Receiver`
+     * to attach
+     */
     public final void attachReceiver(Receiver receiver)
     {
         this.receiverLock.lock();
@@ -86,6 +111,13 @@ public abstract class Link
         this.receivers.insertAfter(this.receivers[], receiver);
     }
 
+    /** 
+     * Removes the given receiver.
+     *
+     * Params:
+     *   receiver = the `Receiver`
+     * to remove
+     */
     public final void removeReceiver(Receiver receiver)
     {
         this.receiverLock.lock();
@@ -98,18 +130,38 @@ public abstract class Link
         this.receivers.linearRemoveElement(receiver);
     }
 
-    // Link-implementation specific for driver to send data
-    // to a specific destination address
+    /** 
+     * Link-implementation specific for driver to send data
+     * to a specific destination address
+     *
+     * Params:
+     *   xmit = the data to transmit
+     *   addr = the link-layer destination address
+     */
     public abstract void transmit(byte[] xmit, string addr);
 
-    // Link-implementation spefici for driver to broadcast
-    // to all hosts on its broadcast domain
+    /** 
+     * Link-implementation spefici for driver to broadcast
+     * to all hosts on its broadcast domain
+     *
+     * Params:
+     *   xmit = the data to broadcast
+     */
     public abstract void broadcast(byte[] xmit);
 
-    // Link-implementation specific for driver to report its address
+    /** 
+     * Link-implementation specific for driver to report its address
+     *
+     * Returns: the link-layer address
+     */
     public abstract string getAddress();
 
-    // shows the memory address, type and the number of attached receivers
+    /** 
+     * Shows the memory address, type and the number of
+     * attached receivers
+     *
+     * Returns: the string
+     */
     public override string toString()
     {
         // fixme, calling this has shown to cause deadlocks, and I know one case where
