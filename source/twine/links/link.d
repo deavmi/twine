@@ -124,11 +124,23 @@ public abstract class Link
     }
 }
 
-// A subscriber could be a router that wants
-// to subscribe to data coming in from this
-// interface
+/** 
+ * A subscriber could be a router that wants
+ * to subscribe to data coming in from this
+ * interface
+ */
 public interface Receiver
 {
+    /** 
+     * On reception of the provided data from
+     * the given link-layer address over
+     * the given `Link`
+     *
+     * Params:
+     *   source = the source `Link`
+     *   recv = the received data
+     *   srcAddr = the source link-layer address
+     */
     public void onReceive(Link source, byte[] recv, string srcAddr);
 }
 
