@@ -84,7 +84,7 @@ Well, you will want to make this data available to any of the `Receiver`(s) whic
 
 Calling this method iterates over every attached `Receiver` and calls their respective `onReceive(...)` methods.
 
-Note: that the `srcAddr` must contain the network-layer source address.
+Note: that the `srcAddr` must contain the link-layer source address.
 
 ### Abstract methods
 
