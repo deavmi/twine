@@ -42,6 +42,12 @@ void main(string[] args)
 	import core.thread;
 	while(true)
 	{
+		if(identity == "laptop")
+		{
+			import std.datetime.systime : Clock;
+			import std.conv : to;
+			r.sendData(cast(byte[])("The time currently is "~to!(string)(Clock.currTime())), "desktop");
+		}
 		r.dumpRoutes();
 		Thread.sleep(dur!("seconds")(5));
 	}
