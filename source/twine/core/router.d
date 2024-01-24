@@ -440,7 +440,19 @@ public class Router : Receiver
         // found route
         if(route.isPresent())
         {
-            // encrypt the payload here
+            Route r = route.get();
+
+            // is data to self
+            if(r.isSelfRoute())
+            {
+                // our link is null, we don't send to ourselves - rather
+                // we call the user handler right now
+                messageHandler(UserDataPkt(to, payload));
+
+                return true;
+            }
+
+            // encrypt the payload here to destination key
             payload = encrypt(payload, to);
 
             // construct data packet to send
@@ -459,35 +471,21 @@ public class Router : Receiver
                 return false;
             }
 
-            Route r = route.get();
+            // resolve link-layer address of next hop
+            Optional!(ArpEntry) ae = this.arp.resolve(r.gateway(), r.link());
 
-            // is data to self
-            if(r.isSelfRoute())
+            if(ae.isPresent())
             {
-                // our link is null, we don't send to ourselves - rather
-                // we call the user handler right now
-                messageHandler(UserDataPkt(to, payload));
-
+                // transmit over link to the destination ll-addr (as indiacted by arp)
+                r.link().transmit(mesgOut.encode(), ae.get().llAddr());
                 return true;
             }
-            // to someone else
             else
             {
-                // resolve link-layer address of next hop
-                Optional!(ArpEntry) ae = this.arp.resolve(r.gateway(), r.link());
-
-                if(ae.isPresent())
-                {
-                    // transmit over link to the destination ll-addr (as indiacted by arp)
-                    r.link().transmit(mesgOut.encode(), ae.get().llAddr());
-                    return true;
-                }
-                else
-                {
-                    logger.error("ARP failed for next hop '", r.gateway(), "' when sending to dst '"~r.destination()~"'");
-                    return false;
-                }
+                logger.error("ARP failed for next hop '", r.gateway(), "' when sending to dst '"~r.destination()~"'");
+                return false;
             }
+            
         }
         // route not found
         else
