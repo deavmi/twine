@@ -1,3 +1,6 @@
+/** 
+ * Address resolution protocol
+ */
 module twine.core.arp;
 
 import core.sync.mutex : Mutex;
@@ -7,29 +10,65 @@ import twine.links.link : Link, Receiver;
 import twine.core.wire;
 import twine.logging;
 import niknaks.functional : Optional;
+import std.datetime.stopwatch : StopWatch, AutoStart;
+import std.datetime : Duration, dur;
 
+/** 
+ * Describes an ARP request with
+ * the networ-address and the `Link`
+ * on which the resolution is to
+ * be done
+ */
 private struct Target
 {
     private string networkAddr;
     private Link onLink;
 
+    /** 
+     * Constructs a new target
+     *
+     * Params:
+     *   networkAddr = the network
+     * address
+     *   link = the `Link` the
+     * request is to be resolved
+     * over
+     */
     this(string networkAddr, Link link)
     {
         this.networkAddr = networkAddr;
         this.onLink = link;
     }
 
+    /** 
+     * Retrieve's this target's
+     * network address of which
+     * is to be used as part of
+     * the request
+     *
+     * Returns: the network address
+     */
     public string getAddr()
     {
         return this.networkAddr;
     }
 
+    /** 
+     * Retrieves this target's
+     * link upon which resolution
+     * is intended to take place
+     * 
+     * Returns: the `Link`
+     */
     public Link getLink()
     {
         return this.onLink;
     }
 }
 
+/** 
+ * The arp management sub-system
+ */
 public class ArpManager : Receiver
 {
     private Mutex waitLock;
@@ -37,8 +76,22 @@ public class ArpManager : Receiver
 
     private Duration timeout = dur!("seconds")(5); // todo, configurabel
 
+    // map l3Addr -> llAddr
+    private string[string] addrIncome; // note also, these should be cleared after some time
+    // probably else it could leak if we receive ARP responses sent to us but of which were
+    // never requested
+
     private CacheMap!(Target, ArpEntry) table;
 
+    /** 
+     * Constructs a new `ArpManager` with
+     * the given sweep interval
+     *
+     * Params:
+     *   sweepInterval = how often the arp
+     * table should be checked for expired
+     * entries
+     */
     this(Duration sweepInterval = dur!("seconds")(60))
     {
         this.table = new CacheMap!(Target, ArpEntry)(&regen, sweepInterval);
@@ -128,7 +181,7 @@ public class ArpManager : Receiver
 
         logger.dbg("attach done");
 
-        // todo, send request
+        // generate the message and send request
         Arp arpReq = Arp.newRequest(addr);
         Message msg;
         if(toMessage(arpReq, msg))
@@ -160,9 +213,23 @@ public class ArpManager : Receiver
         }
     }
 
-    // map l3Addr -> llAddr
-    private string[string] addrIncome;
-
+    
+    /** 
+     * Waits on a condition variable until we have
+     * retrieved the link-layer address which we
+     * requested. It also will time-out after
+     * the configured time if no matching reply
+     * is found.
+     *
+     * This wakes up periodically as well.
+     *
+     * Params:
+     *   l3Addr = the network-layer address
+     *   llAddrOut = the link-layer address
+     * Returns: `true` if we could resolve the
+     * link-layer address, `false` if we timed-out
+     * in waiting for it
+     */
     private bool waitForLLAddr(string l3Addr, ref string llAddrOut)
     {
         StopWatch timer = StopWatch(AutoStart.yes);
@@ -193,6 +260,15 @@ public class ArpManager : Receiver
         return false; // timed out
     }
 
+    /** 
+     * Called by the thread which has an ARP response
+     * it would like to pass off to the thread waiting
+     * on the condition variable
+     *
+     * Params:
+     *   l3Addr = the network layer address
+     *   llAddr = the link-layer address
+     */
     private void placeLLAddr(string l3Addr, string llAddr)
     {
         this.waitLock.lock();
@@ -207,6 +283,15 @@ public class ArpManager : Receiver
         this.addrIncome[l3Addr] = llAddr;
     }
 
+    /** 
+     * Called by the `Link` which received a packet which
+     * may be of interest to us
+     *
+     * Params:
+     *   src = the `Link` from where the packet came from
+     *   data = the packet's data
+     *   srcAddr = the link-layer source address
+     */
     public override void onReceive(Link src, byte[] data, string srcAddr)
     {
         Message recvMesg;
@@ -218,6 +303,7 @@ public class ArpManager : Receiver
                 Arp arpMesg;
                 if(recvMesg.decodeAs(arpMesg))
                 {
+                    logger.dbg("arpMesg, received: ", arpMesg, "from: ", srcAddr);
                     ArpReply reply;
                     if(arpMesg.getReply(reply))
                     {
@@ -247,6 +333,9 @@ public class ArpManager : Receiver
         }
     }
     
+    /** 
+     * Shuts down the manager
+     */
     ~this()
     {
         // todo, double check but yes this should be fine, I believe I added checks for this?
@@ -254,44 +343,116 @@ public class ArpManager : Receiver
         // the regeneration function treat it
         destroy(this.table);
     }
-
-    // todo, how to activate?
-    public void test_stop()
-    {
-        destroy(this.table);
-    }
 }
 
-import std.datetime.stopwatch : StopWatch, AutoStart;
-import std.datetime : Duration, dur;
+/**
+ * This tests the `ArpManager`'s ability
+ * to handle arp requests and responses
+ *
+ * We make use of a dummy `Link` which
+ * we provide with mappings of layer 3
+ * to layer 2 addresses such that when
+ * an ARP request comes in we can respond
+ * with the relevant details as such
+ */
+unittest
+{
+    // Map some layer 3 -> layer 2 addresses
+    string[string] mappings;
+    mappings["hostA:l3"] = "hostA:l2";
+    mappings["hostB:l3"] = "hostB:l2";
 
+    // create a dummy link that responds with those mappings
+    ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
 
+    ArpManager man = new ArpManager();
+
+    // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
+    Optional!(ArpEntry) entry = man.resolve("hostA:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostA:l3"]);
+
+    // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
+    entry = man.resolve("hostB:l3", dummyLink);
+    assert(entry.isPresent());
+    assert(entry.get().llAddr() == mappings["hostB:l3"]);
+
+    // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
+    entry = man.resolve("hostC:l3", dummyLink);
+    assert(entry.isPresent() == false);
+
+    // shutdown the dummy link to get the unittest to end
+    dummyLink.stop();
+
+    // shutdown the arp manager
+    destroy(man);
+}
+
+/** 
+ * An ARP entry mapping a network-layer
+ * address to a link-layer address
+ */
 public struct ArpEntry
 {
     private string l3Addr;
     private string l2Addr;
 
+    /** 
+     * Constructs a new `ArpEntry`
+     * with the given network0layer
+     * address and link-layer address
+     *
+     * Params:
+     *   networkAddr = the network-layer
+     * address
+     *   llAddr = the link-layer address
+     */
     this(string networkAddr, string llAddr)
     {
         this.l3Addr = networkAddr;
         this.l2Addr = llAddr;
     }
 
+    /** 
+     * Retrieves the network-layer
+     * address
+     *
+     * Returns: the address
+     */
     public string networkAddr()
     {
         return this.l3Addr;
     }
 
+    /** 
+     * Retrieves the link-layer
+     * address
+     *
+     * Returns: the address
+     */
     public string llAddr()
     {
         return this.l2Addr;
     }
 
+    /** 
+     * If this entry is empty
+     *
+     * Returns: `true` if both
+     * layer addresses are empty,
+     * `false` otherwise
+     */
     public bool isEmpty()
     {
         return this.l3Addr == "" && this.l2Addr == "";
     }
 
+    /** 
+     * Constructs a new `ArpEntry`
+     * with empty addresses
+     *
+     * Returns: the `ArpEntry`
+     */
     public static ArpEntry empty()
     {
         return ArpEntry("", "");
@@ -306,7 +467,10 @@ version(unittest)
     import core.sync.mutex : Mutex;
     import core.sync.condition : Condition;
     import std.conv : to;
+}
 
+version(unittest)
+{
     // a dummy link which will respond with
     // arp replies using the provided map
     // of l3Addr -> l2Addr
@@ -431,49 +595,4 @@ version(unittest)
             this.ingressSig.notify();
         }
     }
-}
-
-/**
- * This tests the `ArpManager`'s ability
- * to handle arp requests and responses
- *
- * We make use of a dummy `Link` which
- * we provide with mappings of layer 3
- * to layer 2 addresses such that when
- * an ARP request comes in we can respond
- * with the relevant details as such
- */
-unittest
-{
-    // Map some layer 3 -> layer 2 addresses
-    string[string] mappings;
-    mappings["hostA:l3"] = "hostA:l2";
-    mappings["hostB:l3"] = "hostB:l2";
-
-    // create a dummy link that responds with those mappings
-    ArpRespondingLink dummyLink = new ArpRespondingLink(mappings);
-
-    ArpManager man = new ArpManager();
-
-    // try resolve address `hostA:l3` over the `dummyLink` link (should PASS)
-    Optional!(ArpEntry) entry = man.resolve("hostA:l3", dummyLink);
-    assert(entry.isPresent());
-    assert(entry.get().llAddr() == mappings["hostA:l3"]);
-
-    // try resolve address `hostB:l3` over the `dummyLink` link (should PASS)
-    entry = man.resolve("hostB:l3", dummyLink);
-    assert(entry.isPresent());
-    assert(entry.get().llAddr() == mappings["hostB:l3"]);
-
-    // try top resolve `hostC:l3` over the `dummyLink` link (should FAIL)
-    entry = man.resolve("hostC:l3", dummyLink);
-    assert(entry.isPresent() == false);
-
-    // shutdown the dummy link to get the unittest to end
-    dummyLink.stop();
-
-    // shutdown the arp manager
-    // man.test_stop();
-
-    destroy(man);
 }

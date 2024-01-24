@@ -1,7 +1,6 @@
 .dub
 docs.json
 __dummy.html
-docs/
 /twine
 twine.so
 twine.dylib
@@ -15,3 +14,6 @@ twine-test-*
 *.obj
 *.lst
 dub.selections.json
+doc/texput.aux
+doc/texput.log
+doc/texput.toc

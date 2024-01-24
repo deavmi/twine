@@ -13,23 +13,49 @@ import core.sync.condition : Condition;
 import niknaks.functional : Optional;
 import twine.core.arp;
 
-// for data destined to yourself (todo, in future maybe have dest?)
+/** 
+ * This represents data passed
+ * from the router to a user
+ * data handler when data destined
+ * to your node arrives
+ */
 public struct UserDataPkt
 {
     private string src;
     private byte[] data;
 
+    /** 
+     * Constructs a new `UserDataPkt`
+     * with the provided network-layer
+     * source address and payload
+     *
+     * Params:
+     *   src = network-layer address
+     *   data = packet payload
+     */
     this(string src, byte[] data)
     {
         this.src = src;
         this.data = data;
     }
 
+    /** 
+     * Retrieve's the network-layer
+     * address of this packet
+     *
+     * Returns: the address
+     */
     public string getSrc()
     {
         return this.src;
     }
 
+    /** 
+     * Retrieve's the packet's
+     * payload
+     *
+     * Returns: the payload
+     */
     public byte[] getPayload()
     {
         return this.data;
@@ -38,6 +64,7 @@ public struct UserDataPkt
 
 import std.functional : toDelegate;
 public alias DataCallbackDelegate = void delegate(UserDataPkt);
+public alias DataCallbackFunction = void function(UserDataPkt);
 
 private void nopHandler(UserDataPkt u)
 {
@@ -45,40 +72,20 @@ private void nopHandler(UserDataPkt u)
     logger.dbg("NOP handler: ", cast(string)u.getPayload());
 }
 
+/** 
+ * The router which is responsible for
+ * sending routing advertisements,
+ * receiving routes advertised by others,
+ * managing the routing table and
+ * providing a way to send, receive
+ * packets for the user.
+ *
+ * It also manages the forwarding of
+ * packets
+ */
 public class Router : Receiver
 {
     private bool running;
-
-    // todo, make use of this in the future with a message processing thread
-    // offload, from on-link processing
-    private struct ProcMesg
-    {
-        private Link link;
-        private byte[] data;
-        private string llSrcAddr;
-
-        this(Link from, byte[] recv, string llSrcAddr)
-        {
-            this.link = from;
-            this.data = recv;
-            this.llSrcAddr = llSrcAddr;
-        }
-
-        public Link getLink()
-        {
-            return this.link;
-        }
-
-        public byte[] getData()
-        {
-            return this.data;
-        }
-
-        public string getLLSource()
-        {
-            return this.llSrcAddr;
-        }
-    }
 
     // link management
     private const LinkManager linkMan; // const, never should be changed besides during construction
@@ -96,13 +103,14 @@ public class Router : Receiver
     // incoming message handler
     private const DataCallbackDelegate messageHandler;
 
-    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler))
+    // todo, set advFreq back to 5 seconds
+    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
     {
         this.linkMan = new LinkManager(this);
         this.arp = new ArpManager();
         
         this.advThread = new Thread(&advertiseLoop);
-        this.advFreq = dur!("seconds")(5);
+        this.advFreq = advFreq;
 
         this.keyPairs = keyPairs;
         this.messageHandler = messageHandler;
@@ -113,12 +121,24 @@ public class Router : Receiver
         installSelfRoute();
     }
 
+    // todo, set advFreq back to 5 seconds
+    this(string[] keyPairs, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
+    {
+        this(keyPairs, toDelegate(messageHandler), advFreq);
+    }
+
+    /** 
+     * Starts the router
+     */
     public void start()
     {
         this.running = true;
         this.advThread.start();
     }
 
+    /** 
+     * Stops the router
+     */
     public void stop()
     {
         this.running = false;
@@ -128,16 +148,39 @@ public class Router : Receiver
         destroy(this.arp);
     }
 
+    /** 
+     * Returns the link manager
+     * instance of this router
+     *
+     * Returns: the `LinkManager`
+     */
     public final LinkManager getLinkMan()
     {
         return cast(LinkManager)this.linkMan;
     }
 
+    /** 
+     * Returns the public key associated
+     * with this router
+     *
+     * Returns: the public key
+     */
     private string getPublicKey()
     {
         return this.keyPairs[0];
     }
 
+    /** 
+     * Process a given payload from a given
+     * link and source link-layer address
+     *
+     * Params:
+     *   link = the `Link` from which the
+     * packet was received
+     *   data = the data itself
+     *   srcAddr = the link-layer address
+     * which is the source of this packet
+     */
     private void process(Link link, byte[] data, string srcAddr)
     {
         logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
@@ -175,6 +218,14 @@ public class Router : Receiver
 
     private bool isForwarding = true; // todo, make togglable during runtime
 
+    /** 
+     * Given a packet this will
+     * attempt to forward it
+     *
+     * Params:
+     *   dataPkt = the packet as
+     * a `User`
+     */
     private void attemptForward(Data dataPkt)
     {
         // lookup route to host
@@ -219,6 +270,21 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Handles a packet that contains user data.
+     *
+     * Depending on who it was destined to this
+     * will either call a user data packet handler
+     * or it will attempt to forward it (if forwarding
+     * is enabled)
+     *
+     * Params:
+     *   link = the `Link` from which the packet
+     * was received
+     *   srcAddr = the link-layer source address of
+     * the packet
+     *   recvMesg = the received `Message`
+     */
     private void handle_DATA(Link link, string srcAddr, Message recvMesg)
     {
         Data dataPkt;
@@ -253,11 +319,30 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Handles a packet which contains
+     * ARP data in it. It detects
+     * firstly if it is an ARP request
+     * (as responses are ignored) and
+     * then, if so, it checks that the
+     * requested network-layer address
+     * matches our public key - and
+     * then proceeds to answer it.
+     *
+     * Params:
+     *   link = the `Link` from which
+     * this packet was received
+     *   srcAddr = the link-layer
+     * source address
+     *   recvMesg = the received message
+     */
     private void handle_ARP(Link link, string srcAddr, Message recvMesg)
     {
         Arp arpMesg;
         if(recvMesg.decodeAs(arpMesg))
         {
+            logger.dbg("arpMesg: ", arpMesg);
+
             if(arpMesg.isRequest())
             {
                 string requestedL3Addr;
@@ -274,6 +359,7 @@ public class Router : Receiver
                             Message mesgOut;
                             if(toMessage(arpRep, mesgOut))
                             {
+                                logger.dbg("Sending out ARP response: ", arpRep);
                                 link.transmit(mesgOut.encode(), srcAddr);
                             }
                             else
@@ -304,11 +390,34 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Called whenever we receive a packet
+     * from one of the links associated
+     * with this router
+     *
+     * Params:
+     *   link = the `Link` from which the
+     * packet came from
+     *   data = the packet itself
+     *   srcAddr = the link-layer source
+     * address of the packet
+     */
     public void onReceive(Link link, byte[] data, string srcAddr)
     {
         process(link, data, srcAddr);
     }
 
+    /** 
+     * Sends a piece of data to the given
+     * network-layer address
+     *
+     * Params:
+     *   payload = the data to send
+     *   to = the destination network-layer
+     * address
+     * Returns: `true` if sending succeeded
+     * but if not then `false`
+     */
     public bool sendData(byte[] payload, string to)
     {
         // lookup route to host
@@ -423,6 +532,11 @@ public class Router : Receiver
         return false;
     }
 
+    /** 
+     * Prints out all the routes
+     * currently in the routing
+     * table
+     */
     public void dumpRoutes()
     {
         import std.stdio : writeln;
@@ -443,6 +557,24 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Checks if the given route should be
+     * installed and, if so, installs it.
+     *
+     * If the incoming route is to a destination
+     * not yet present then it is installed,
+     * if to an already-present destination
+     * then metric is used to break the tie.
+     *
+     * If the route matches an existing one
+     * by everything then we don't install
+     * the new one (because it's identical)
+     * but rather reset the timer of the existing
+     * one.
+     *
+     * Params:
+     *   route = the new route to install
+     */
     private void installRoute(Route route)
     {
         this.routesLock.lock();
@@ -467,10 +599,27 @@ public class Router : Receiver
             {
                 this.routes[route.destination()] = route;
             }
+            else
+            {
+                // if matched route is the same as incoming route
+                // then simply refresh the current one
+                if(*cr == route)
+                {
+                    cr.refresh();
+                }
+            }
         }
     }
 
-    // Handles all sort of advertisement messages
+    /** 
+     * Handles incoming advertisement
+     * messages
+     *
+     * Params:
+     *   link = the `Link` from which
+     * the message was received
+     *   recvMesg = the message itself
+     */
     private void handle_ADV(Link link, Message recvMesg)
     {
         Advertisement advMesg;
@@ -508,12 +657,25 @@ public class Router : Receiver
         }
     }
 
+    /** 
+     * Installs a route to ourselves
+     * which has a distance of `0`,
+     * a destination of our public
+     * key and no link
+     */
     private void installSelfRoute()
     {
         Route selfR = Route(getPublicKey(), null, 0);
         installRoute(selfR);
     }
 
+    /** 
+     * Returns a list of all
+     * the currently installled
+     * routes
+     *
+     * Returns: a `Route[]`
+     */
     private Route[] getRoutes()
     {
         this.routesLock.lock();
@@ -526,6 +688,27 @@ public class Router : Receiver
         return this.routes.values.dup;
     }
 
+    private void routeSweep()
+    {
+        this.routesLock.lock();
+
+        scope(exit)
+        {
+            this.routesLock.unlock();
+        }
+
+        foreach(string destination; this.routes.keys())
+        {
+            Route cro = this.routes[destination];
+
+            if(cro.hasExpired())
+            {
+                this.routes.remove(destination);
+                logger.warn("Expired route '", cro, "'");
+            }
+        }
+    }
+    
     /** 
      * Sends out modified routes from the routing
      * table (with us as the `via`) on an interval
@@ -535,6 +718,9 @@ public class Router : Receiver
     {
         while(this.running)
         {
+            // TODO: Add route expiration check here
+            routeSweep();
+
             // advertise to all links
             Link[] selected = getLinkMan().getLinks();
             logger.info("Advertising to ", selected.length, " many links");
@@ -692,11 +878,11 @@ unittest
     p2.connect(p1, p1.getAddress());
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"]);
+    Router r1 = new Router(["p1Pub", "p1Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r1.getLinkMan().addLink(p1);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"]);
+    Router r2 = new Router(["p2Pub", "p2Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r2.getLinkMan().addLink(p2);
     r2.start();
 
@@ -814,16 +1000,16 @@ unittest
     }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler);
+    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler, dur!("seconds")(5));
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler);
+    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler, dur!("seconds")(5));
     r2.getLinkMan().addLink(p2_to_p1);
     r2.start();
 
-    Router r3 = new Router(["p3Pub", "p3Priv"]);
+    Router r3 = new Router(["p3Pub", "p3Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 

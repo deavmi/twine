@@ -83,7 +83,19 @@ public class LLInterface : Link
 
     public override string getAddress()
     {
-        return if_.getAddress().toAddrString();
+        import std.stdio;
+        writeln("HHHA");
+        writeln("HHHA");
+        writeln("HHHA");
+        writeln("HHHA");
+        // we need the bound port (not the 0 from init)
+        string port = this.peerSock.localAddress().toPortString();
+        string ret = if_.getAddress().toAddrString()~":"~port;
+        writeln("ret: ", ret);
+        writeln("ret: ", ret);
+        writeln("ret: ", ret);
+
+        return ret;
     }
 
     public override string toString()
@@ -91,15 +103,42 @@ public class LLInterface : Link
         return "LLInterface [name: "~if_.getName()~", address: "~if_.getAddress().toAddrString()~", recvs: "~to!(string)(getRecvCnt())~"]";
     }
 
+    private static Address getAddress_fromStringWithKak(string addr)
+    {
+        import std.string : split, lastIndexOf, strip;
+        string[] cmps = addr.split(":");
+        import std.conv : to;
+        writeln(cmps);
+        string host = strip(strip(addr[0..lastIndexOf(addr, ":")], "["), "]");
+        writeln("host: ", host);
+        ushort port = to!(ushort)(addr[lastIndexOf(addr, ":")+1..$]);
+        writeln("port: ", port);
+
+        return parseAddress(host, port);
+    }
+
     public override void transmit(byte[] xmit, string addr)
     {
-        // we could send via any socket probably, just destination address is iportant
-        this.peerSock.sendTo(xmit, parseAddress(addr));
+        import std.socket : SocketException;
+        try
+        {
+            // we could send via any socket probably, just destination address is iportant
+            writeln("transmit LLInterface to: "~addr);
+            writeln("transmit LLInterface to (Address object): ", getAddress_fromStringWithKak(addr));
+            auto i = this.peerSock.sendTo(xmit, getAddress_fromStringWithKak(addr));
+            writeln("transmit LLInterface to: "~addr~" with return-no: ", i);
+        }
+        catch(SocketException e)
+        {
+            writeln("transmit failure: ", e);
+        }
     }
 
     public override void broadcast(byte[] xmit)
     {
-        this.peerSock.sendTo(xmit, cast(Address)this.mcastAddress);
+        writeln("heyo: broadcasting");
+        auto i = this.peerSock.sendTo(xmit, cast(Address)this.mcastAddress);
+        writeln("broadcast result: ", i);
     }
 
     private void mcastLoop()
@@ -122,14 +161,14 @@ public class LLInterface : Link
             // Now dequeue the correct number of bytes
             else
             {
-                Address fromAddr; // todo, do we need this?
+                Address fromAddr;
 
                 buffer.length = cnt;
                 this.mcastSock.receiveFrom(buffer, fromAddr);
                 writeln("from: ", fromAddr, "bytes: ", buffer);
 
                 // Pass received data on upwards
-                receive(buffer, fromAddr.toString()); // todo, pass in fromAddr
+                receive(buffer, fromAddr.toString());
             }
         }
     }
@@ -138,18 +177,37 @@ public class LLInterface : Link
     {
         while(this.running) // todo flag
         {
-            byte[] buffer;
+            byte[] buffer = [1];
 
-            // this.socket.receiveFrom(buffer, SocketFlags.PEEK|)
-            Thread.sleep(dur!("seconds")(100)); 
+            // + Return the length of datagram, not successfully read bytes
+            // + Don't dequeue the datagram from the kernel's internal buffer
+            SocketFlags firstReadFlags = cast(SocketFlags)(MSG_TRUNC|MSG_PEEK);
+            ptrdiff_t cnt = this.peerSock.receiveFrom(buffer, firstReadFlags);
 
-            // todo, implement dis
+            if(cnt <= 0)
+            {
+                // todo handle errors
+                // 0 would not happen no dc
+                // anything less maybe?
+            }
+            // Now dequeue the correct number of bytes
+            else
+            {
+                Address fromAddr;
+
+                buffer.length = cnt;
+                this.peerSock.receiveFrom(buffer, fromAddr);
+                writeln("from: ", fromAddr, "bytes: ", buffer);
+
+                // Pass received data on upwards
+                receive(buffer, fromAddr.toString());
+            }
         }
     }
 
     public void stop()
     {
-        
+        // todo, interrupt the thread here - I want to be able to do that
     }
 
 }
