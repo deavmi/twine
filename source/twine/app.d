@@ -20,7 +20,9 @@ void main(string[] args)
 	string identity = args[1];
 	string[] interfaces = args[2..$];
 
-	Router r = new Router([identity, "privKey1"]);
+	import twine.core.keys;
+	Identity ident = Identity.newIdentity();
+	Router r = new Router(ident);
 
 
 	import niknaks.debugging;

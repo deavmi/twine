@@ -12,6 +12,7 @@ import core.sync.mutex : Mutex;
 import core.sync.condition : Condition;
 import niknaks.functional : Optional;
 import twine.core.arp;
+import twine.core.keys;
 
 /** 
  * This represents data passed
@@ -91,7 +92,9 @@ public class Router : Receiver
     private const LinkManager linkMan; // const, never should be changed besides during construction
     private Thread advThread;
     private Duration advFreq;
-    private string[] keyPairs;
+
+    // crypto
+    private const Identity identity;
 
     // routing tables
     private Route[string] routes;
@@ -104,7 +107,7 @@ public class Router : Receiver
     private const DataCallbackDelegate messageHandler;
 
     // todo, set advFreq back to 5 seconds
-    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
+    this(const Identity identity, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
     {
         this.linkMan = new LinkManager(this);
         this.arp = new ArpManager();
@@ -112,7 +115,7 @@ public class Router : Receiver
         this.advThread = new Thread(&advertiseLoop);
         this.advFreq = advFreq;
 
-        this.keyPairs = keyPairs;
+        this.identity = identity;
         this.messageHandler = messageHandler;
 
         this.routesLock = new Mutex();
@@ -122,9 +125,9 @@ public class Router : Receiver
     }
 
     // todo, set advFreq back to 5 seconds
-    this(string[] keyPairs, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
+    this(Identity identity, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
     {
-        this(keyPairs, toDelegate(messageHandler), advFreq);
+        this(identity, toDelegate(messageHandler), advFreq);
     }
 
     /** 
@@ -165,9 +168,9 @@ public class Router : Receiver
      *
      * Returns: the public key
      */
-    private string getPublicKey()
+    private const string getPublicKey()
     {
-        return this.keyPairs[0];
+        return this.identity.getPublicKey();
     }
 
     /** 
