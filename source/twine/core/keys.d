@@ -1,6 +1,6 @@
 module twine.core.keys;
 
-import crypto.rsa;
+import crypto.rsa : RSA, RSAKeyPair;
 
 public const struct Identity
 {
@@ -44,4 +44,18 @@ public const struct Identity
         RSAKeyPair kp = RSA.generateKeyPair();
         return Identity(kp.publicKey, kp.privateKey);
     }
+}
+
+private alias rsa_encrypt = RSA.encrypt;
+
+public byte[] encrypt(byte[] raw, string publicKey)
+{
+    return cast(byte[])rsa_encrypt(publicKey, cast(ubyte[])raw);
+}
+
+private alias rsa_decrypt = RSA.decrypt;
+
+public byte[] decrypt(byte[] encrypted, string privateKey)
+{
+    return cast(byte[])rsa_decrypt(privateKey, cast(ubyte[])encrypted);
 }
