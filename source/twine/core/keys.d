@@ -2,7 +2,7 @@ module twine.core.keys;
 
 import crypto.rsa;
 
-public struct Identity
+public const struct Identity
 {
     private string publicKey;
     private string privateKey;
