@@ -125,7 +125,7 @@ public class LLInterface : Link
             // we could send via any socket probably, just destination address is iportant
             writeln("transmit LLInterface to: "~addr);
             writeln("transmit LLInterface to (Address object): ", getAddress_fromStringWithKak(addr));
-            auto i=this.peerSock.sendTo(xmit, getAddress_fromStringWithKak(addr));
+            auto i = this.peerSock.sendTo(xmit, getAddress_fromStringWithKak(addr));
             writeln("transmit LLInterface to: "~addr~" with return-no: ", i);
         }
         catch(SocketException e)
