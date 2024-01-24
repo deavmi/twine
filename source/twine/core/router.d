@@ -168,7 +168,7 @@ public class Router : Receiver
      *
      * Returns: the public key
      */
-    private const string getPublicKey()
+    private string getPublicKey()
     {
         return this.identity.getPublicKey();
     }
