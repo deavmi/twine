@@ -169,10 +169,10 @@ private void installRoute(Route route)
 ```
 
 Firstly as you have seen we lock the routing table mutex to make sure we don't get any inconsistent changes
-to the routing table during usage (remember taht we will be modifying it and others could be doing so as
+to the routing table during usage (remember that we will be modifying it and others could be doing so as
 well). We then also set a `scope(exit)` statement which means that upon any exiting of this level of scope
-we will unlock the mutex. Lastly we then get a pointer to the `Route` in the table at the given key. Remeber
-the routing table was a `Route[string]` which means the `string`, _the key_, is the destintation address
+we will unlock the mutex. Lastly we then get a pointer to the `Route` in the table at the given key. Remember
+the routing table was a `Route[string]` which means the `string`, _the key_, is the destination address
 of the incoming route in this case. The _value_ would be the found `Route*` if any.
 
 ```{.numberLines .d}
