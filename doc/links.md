@@ -103,3 +103,81 @@ an implementation for handling _egress_ traffic.
 | `string getAddress()`                    | Link-implementation specific for driver to report its address                             |
 
 Note: The last method, `getAddress()`, must return the `Link`'s link-layer address.
+
+## The `LinkManager`
+
+The `LinkManager` is a module which consumes a single `Receiver` is present to manage the complexity
+of `Link` management. It is rather simple however. Whenever one requests that a `Link` is to be added
+to the manager then we shall take the single `Receiver` and attach it to the given link. This helps
+contain this attachment process in a seperate module such that the `Router` need only pass itself in
+(as it is a `Receiver`) and call the `addLink(Link)` method whenever it wants to attach a link and ensure
+that packetcs incoming from them make its way to our `Router`.
+
+### Methods
+
+The methods that are made available are shown below:
+
+| Method name                              | Description                                                                               |
+|------------------------------------------|-------------------------------------------------------------------------------------------|
+| `addLink(Link link)`                     | Adds this link such that we will receive data packets from it onto our `Receiver`         |
+| `removeLink(Link link)`                  | Removes this link and ensures we no longer receive data packets from it to our `Receiver` | 
+| `Link[] getLinks()`                      | Get a list of all attached links                                                          |
+
+We look at the implementation for the `addLink(Link)` method below to illustrate the ideas mentioned earlier:
+
+```{.numberLines .d}
+/** 
+ * Manages links in a manner that
+ * a single `Receiver` can be responsible
+ * for all such links attached or
+ * to be attached in the future
+ */
+public class LinkManager
+{
+    ...
+
+    /** 
+     * Constructs a new `LinkManager`
+     * with the given receiver
+     *
+     * Params:
+     *   receiver = the receiver
+     * to use
+     */
+    this(Receiver receiver)
+    {
+        this.receiver = receiver;
+        this.linksLock = new Mutex();
+    }
+
+    /** 
+     * Adds this link such that we will
+     * receive data packets from it onto
+     * our `Receiver`
+     *
+     * Params:
+     *   link = the link to add
+     */
+    public final void addLink(Link link)
+    {
+        this.linksLock.lock();
+
+        scope(exit)
+        {
+            this.linksLock.unlock();
+        }
+
+        // Add link
+        this.links.insertAfter(this.links[], link);
+
+        // Receive data from this link
+        link.attachReceiver(this.receiver);
+    }
+
+    ...
+
+```
+
+As you can see we add the provided `Link` to a list of links and then also attach the `Receiver`, which we
+consumed during construction of the `LinkManager`, to this link  such that data packets from the link can
+be sent up to the `Receiver`.
