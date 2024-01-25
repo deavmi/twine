@@ -277,10 +277,7 @@ We also see how we are eneumerating all `Link`(s) which are attached to the rout
 (via its `LinkManager` (returned by `getLinkMan()`)). We would like to advertise all
 the routes in our table over all of these links.
 
----
-
 ```{.numberLines .d}
-
 // advertise each route in table
 foreach(Route route; getRoutes())
 {
