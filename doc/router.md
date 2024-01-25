@@ -146,6 +146,35 @@ releasing said lock:
 | `Optional!(Route) findRoute(string)`    | Given the destination network-layer address this returns an `Optional` potentially containing the found `Route` |
 | `installRoute(Route route)`             | Checks if the given route should be installed and, if so, installs it. |
 | `dumpRoutes()`                          | This is a debugging method which prints out the routing table in ASCII form |
+| `installSelfRoute()`                    | Installs a route to yourself (destination is the result of `getPublicKey()`) |
+| `Route[] getRoutes()`                   | Returns a list of all the currently installed routes            |
+| `routeSweep()`                          | Checks all routes and evicts those which have expired            |
+| `advertiseLoop()`                       | Sends out modified routes from the routing table (with us as the `via`) on an interval whilst we are running |
+
+#### The self-route
+
+You would have seen the `installSelfRoute()` but are probably wondering what that is. Well, it is actually called
+in the constructor (`this()`) and is there such that you will have a route in your routing table with a distance of
+$0$ (meaning it will never be replaced) and with a destination to your public key. What this means is the the route
+advertising mechanism will be able to advertise your presence to other routers - that's it.
+
+```{.numberLines .d}
+/** 
+ * Installs a route to ourselves
+ * which has a distance of `0`,
+ * a destination of our public
+ * key and no link
+ */
+private void installSelfRoute()
+{
+    Route selfR = Route(getPublicKey(), null, 0);
+    installRoute(selfR);
+}
+```
+
+As you can see it doesn't have much difference to it than any other route being installed, besides, perhaps - the fact
+that its `Link` is null. This is such that when you call `isSelfRoute()` (on the `Route` struct) that it will report
+itself as such.
 
 #### Installing of routes
 
@@ -218,3 +247,68 @@ route $r_i$. If this is _not_ the case then we do not install the route. However
 the incoming route is identical (must have been the same router advertising a route we received from it earlier)
 then we simply refresh it (reset its timer) instead of storing it again, if that is not the case we don't change
 anything.
+
+#### Advertising of routes
+
+The advertising of routes is implemented in the `advertiseLoop()` which runs on its own thread and will wake up
+at a fixed interval in order to perform two operations:
+
+1. Checking for evicted routes
+    * By calling `routeSweep()`
+2. Sending out advertisements
+    * This is explained below
+
+---
+
+We now analyze this loop below:
+
+```{.numberLines .d}
+// Check for and evict expired routes
+routeSweep();
+
+// advertise to all links
+Link[] selected = getLinkMan().getLinks();
+logger.info("Advertising to ", selected.length, " many links");
+```
+
+As we can see above we sweep the routing table firstly by a call to `routeSweep()`.
+
+We also see how we are eneumerating all `Link`(s) which are attached to the router
+(via its `LinkManager` (returned by `getLinkMan()`)). We would like to advertise all
+the routes in our table over all of these links.
+
+---
+
+```{.numberLines .d}
+
+// advertise each route in table
+foreach(Route route; getRoutes())
+{
+    logger.info("Advertising route '", route, "'");
+    string dst = route.destination();
+    string via = this.getPublicKey(); // routes must be advertised as if they're from me now
+    ubyte distance = route.distance();
+
+    Advertisement advMesg = Advertisement.newAdvertisement(dst, via, distance);
+    Message message;
+    if(toMessage(advMesg, message))
+    {
+        logger.dbg("Sending advertisement on '", link, "'...");
+        link.broadcast(message.encode()); // should have a return value for success or failure
+        logger.info("Sent advertisement");
+    }
+    else
+    {
+        // todo, handle failure to encode
+        logger.error("Failure to encode, developer error");
+    }
+}
+
+...
+```
+
+The advertising of routes works as follows. Given a route $r_i$ in our routing table,
+we construct a new route, $r_i_{out}$ of which has all the attributes of the current
+route's ($r_i$'s) attributes **however** we update the `via` (or _gateway_) of $r_i_{out}$
+to be that of our public key. Only _then_ do we send out the advertisment over the `Link`
+in the form of a broadcast.
