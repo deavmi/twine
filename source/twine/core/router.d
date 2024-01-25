@@ -688,6 +688,11 @@ public class Router : Receiver
         return this.routes.values.dup;
     }
 
+    /** 
+     * Checks all routes and
+     * evicts those which have
+     * expired
+     */
     private void routeSweep()
     {
         this.routesLock.lock();
@@ -718,7 +723,7 @@ public class Router : Receiver
     {
         while(this.running)
         {
-            // TODO: Add route expiration check here
+            // Check for and evict expired routes
             routeSweep();
 
             // advertise to all links
