@@ -32,7 +32,9 @@ public class LinkManager
     }
 
     /** 
-     * Adds this link
+     * Adds this link such that we will
+     * receive data packets from it onto
+     * our `Receiver`
      *
      * Params:
      *   link = the link to add
@@ -54,7 +56,10 @@ public class LinkManager
     }
 
     /** 
-     * Removes this link
+     * Removes this link and ensures
+     * we no longer receive data
+     * packets from it to our
+     * `Receiver`
      *
      * Params:
      *   link = the link to remove
