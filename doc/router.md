@@ -309,3 +309,58 @@ we construct a new route, $r_i_{out}$ of which has all the attributes of the cur
 route's ($r_i$'s) attributes **however** we update the `via` (or _gateway_) of $r_i_{out}$
 to be that of our public key. Only _then_ do we send out the advertisment over the `Link`
 in the form of a broadcast.
+
+### Handling of ingress traffic
+
+We now move over to the way in which the `Router` receives data packets from its attached
+links. Recall earlier we described how the `LinkManager` takes in a `Receiver` and kept
+tracks of all the `Link`(s) requested to be added _and_, if added, would attach the `Receiver`
+to it.
+
+Well, now we have a single method in the router, `onReceive(Link link, byte[] data, string srcAddr)`
+which is responsible for handling data packets coming from all of these attached links. It actually
+calls a method called `process(Link link, byte[] data, string srcAddr)`, hence copying its
+arguments in. We therefore will look at this method:
+
+```{.numberLines .d}
+logger.dbg("Received data from link '", link, "' with ", data.length, " many bytes (llSrc: "~srcAddr~")");
+
+Message recvMesg;
+if(Message.decode(data, recvMesg))
+{
+    logger.dbg("Received from link '", link, "' message: ", recvMesg);
+
+    ...
+}
+else
+{
+    logger.warn("Received message from '", link, "' but failed to decode");
+}
+```
+
+What we do here is attempt to decode the incoming bytes into a `Message`, the outermost message encapsulation.
+
+```{.numberLines .d}
+// Process message
+MType mType = recvMesg.getType();
+switch(mType)
+{
+    // Handle ADV messages
+    case MType.ADV:
+        handle_ADV(link, recvMesg);
+        break;
+    // Handle ARP requests
+    case MType.ARP:
+        handle_ARP(link, srcAddr, recvMesg);
+        break;
+    // Handle DATA messages
+    case MType.DATA:
+        handle_DATA(link, srcAddr, recvMesg);
+        break;
+    default:
+        logger.warn("Unsupported message type: '", mType, "'");
+}
+```
+
+If the decoding succeeds we then move ahead to determine the type of message and calling the correct method
+depending on the type.
