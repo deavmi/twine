@@ -12,6 +12,7 @@ import core.sync.mutex : Mutex;
 import core.sync.condition : Condition;
 import niknaks.functional : Optional;
 import twine.core.arp;
+import twine.core.keys;
 
 /** 
  * This represents data passed
@@ -91,7 +92,9 @@ public class Router : Receiver
     private const LinkManager linkMan; // const, never should be changed besides during construction
     private Thread advThread;
     private Duration advFreq;
-    private string[] keyPairs;
+
+    // crypto
+    private const Identity identity;
 
     // routing tables
     private Route[string] routes;
@@ -104,7 +107,7 @@ public class Router : Receiver
     private const DataCallbackDelegate messageHandler;
 
     // todo, set advFreq back to 5 seconds
-    this(string[] keyPairs, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
+    this(const Identity identity, DataCallbackDelegate messageHandler = toDelegate(&nopHandler), Duration advFreq = dur!("seconds")(100))
     {
         this.linkMan = new LinkManager(this);
         this.arp = new ArpManager();
@@ -112,7 +115,7 @@ public class Router : Receiver
         this.advThread = new Thread(&advertiseLoop);
         this.advFreq = advFreq;
 
-        this.keyPairs = keyPairs;
+        this.identity = identity;
         this.messageHandler = messageHandler;
 
         this.routesLock = new Mutex();
@@ -122,9 +125,9 @@ public class Router : Receiver
     }
 
     // todo, set advFreq back to 5 seconds
-    this(string[] keyPairs, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
+    this(Identity identity, DataCallbackFunction messageHandler, Duration advFreq = dur!("seconds")(100))
     {
-        this(keyPairs, toDelegate(messageHandler), advFreq);
+        this(identity, toDelegate(messageHandler), advFreq);
     }
 
     /** 
@@ -167,7 +170,12 @@ public class Router : Receiver
      */
     private string getPublicKey()
     {
-        return this.keyPairs[0];
+        return this.identity.getPublicKey();
+    }
+
+    private string getPrivateKey()
+    {
+        return this.identity.getPrivateKey();
     }
 
     /** 
@@ -299,6 +307,9 @@ public class Router : Receiver
             {
                 logger.dbg("packet '", dataPkt, "' is destined to me");
 
+                // decode the data
+                payload = decrypt(payload, getPrivateKey());
+
                 // run handler
                 messageHandler(UserDataPkt(uSrc, payload));
             }
@@ -407,6 +418,9 @@ public class Router : Receiver
         process(link, data, srcAddr);
     }
 
+    // todo, add session-based send over here
+    import twine.core.keys;
+
     /** 
      * Sends a piece of data to the given
      * network-layer address
@@ -426,6 +440,21 @@ public class Router : Receiver
         // found route
         if(route.isPresent())
         {
+            Route r = route.get();
+
+            // is data to self
+            if(r.isSelfRoute())
+            {
+                // our link is null, we don't send to ourselves - rather
+                // we call the user handler right now
+                messageHandler(UserDataPkt(to, payload));
+
+                return true;
+            }
+
+            // encrypt the payload here to destination key
+            payload = encrypt(payload, to);
+
             // construct data packet to send
             Data dataPkt; // todo, if any crypto it would be with `to` NOT `via` (which is imply the next hop)
             if(!Data.makeDataPacket(getPublicKey(), to, payload, dataPkt))
@@ -442,35 +471,21 @@ public class Router : Receiver
                 return false;
             }
 
-            Route r = route.get();
+            // resolve link-layer address of next hop
+            Optional!(ArpEntry) ae = this.arp.resolve(r.gateway(), r.link());
 
-            // is data to self
-            if(r.isSelfRoute())
+            if(ae.isPresent())
             {
-                // our link is null, we don't send to ourselves - rather
-                // we call the user handler right now
-                messageHandler(UserDataPkt(to, payload));
-
+                // transmit over link to the destination ll-addr (as indiacted by arp)
+                r.link().transmit(mesgOut.encode(), ae.get().llAddr());
                 return true;
             }
-            // to someone else
             else
             {
-                // resolve link-layer address of next hop
-                Optional!(ArpEntry) ae = this.arp.resolve(r.gateway(), r.link());
-
-                if(ae.isPresent())
-                {
-                    // transmit over link to the destination ll-addr (as indiacted by arp)
-                    r.link().transmit(mesgOut.encode(), ae.get().llAddr());
-                    return true;
-                }
-                else
-                {
-                    logger.error("ARP failed for next hop '", r.gateway(), "' when sending to dst '"~r.destination()~"'");
-                    return false;
-                }
+                logger.error("ARP failed for next hop '", r.gateway(), "' when sending to dst '"~r.destination()~"'");
+                return false;
             }
+            
         }
         // route not found
         else
@@ -884,11 +899,14 @@ unittest
     p2.connect(p1, p1.getAddress());
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
+    Identity r1_ident = Identity.newIdentity();
+    Identity r2_ident = Identity.newIdentity();
+
+    Router r1 = new Router(r1_ident, toDelegate(&nopHandler), dur!("seconds")(5));
     r1.getLinkMan().addLink(p1);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
+    Router r2 = new Router(r2_ident, toDelegate(&nopHandler), dur!("seconds")(5));
     r2.getLinkMan().addLink(p2);
     r2.start();
 
@@ -986,6 +1004,12 @@ unittest
     p1_to_p3.connect(p3_to_p1, p3_to_p1.getAddress());
     p3_to_p1.connect(p1_to_p3, p1_to_p3.getAddress());
 
+
+    Identity r1_ident = Identity.newIdentity();
+    Identity r2_ident = Identity.newIdentity();
+    Identity r3_ident = Identity.newIdentity();
+
+
     UserDataPkt r1_to_r1_reception;
     void r1_msg_handler(UserDataPkt m)
     {
@@ -995,27 +1019,27 @@ unittest
     UserDataPkt r1_to_r2_reception, r3_to_r2_reception;
     void r2_msg_handler(UserDataPkt m)
     {
-        if(m.getSrc() == "p1Pub")
+        if(m.getSrc() == r1_ident.getPublicKey())
         {
             r1_to_r2_reception = m;
         }
-        else if(m.getSrc() == "p3Pub")
+        else if(m.getSrc() == r3_ident.getPublicKey())
         {
             r3_to_r2_reception = m;
         }
     }
 
 
-    Router r1 = new Router(["p1Pub", "p1Priv"], &r1_msg_handler, dur!("seconds")(5));
+    Router r1 = new Router(r1_ident, &r1_msg_handler, dur!("seconds")(5));
     r1.getLinkMan().addLink(p1_to_p2);
     r1.getLinkMan().addLink(p1_to_p3);
     r1.start();
 
-    Router r2 = new Router(["p2Pub", "p2Priv"], &r2_msg_handler, dur!("seconds")(5));
+    Router r2 = new Router(r2_ident, &r2_msg_handler, dur!("seconds")(5));
     r2.getLinkMan().addLink(p2_to_p1);
     r2.start();
 
-    Router r3 = new Router(["p3Pub", "p3Priv"], toDelegate(&nopHandler), dur!("seconds")(5));
+    Router r3 = new Router(r3_ident, toDelegate(&nopHandler), dur!("seconds")(5));
     r3.getLinkMan().addLink(p3_to_p1);
     r3.start();
 
@@ -1055,21 +1079,21 @@ unittest
     writeln(dumpArray!(r3_routes));
 
     // r1 -> r2 (on-link forwarding decision)
-    assert(r1.sendData(cast(byte[])"ABBA poespoes", "p2Pub"));
+    assert(r1.sendData(cast(byte[])"ABBA poespoes", r2_ident.getPublicKey()));
     // todo, use condvar to wait aaasuredly
     Thread.sleep(dur!("seconds")(2));
     // check reception of message
     assert(r1_to_r2_reception.getPayload() == "ABBA poespoes");
 
     // r3 -> r2 (forwarded via r1)
-    assert(r3.sendData(cast(byte[])"ABBA naainaai", "p2Pub"));
+    assert(r3.sendData(cast(byte[])"ABBA naainaai", r2_ident.getPublicKey()));
     // todo, use condvar to wait aaasuredly
     Thread.sleep(dur!("seconds")(2));
     // check reception of message
     assert(r3_to_r2_reception.getPayload() == "ABBA naainaai");
 
     // r1 -> r1 (self-route)
-    assert(r1.sendData(cast(byte[])"ABBA kakkak", "p1Pub"));
+    assert(r1.sendData(cast(byte[])"ABBA kakkak", r1_ident.getPublicKey()));
     // todo, use condvar to wait aaasuredly
     Thread.sleep(dur!("seconds")(2));
     // check reception of message
