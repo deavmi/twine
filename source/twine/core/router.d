@@ -706,7 +706,8 @@ public class Router : Receiver
         {
             Route cro = this.routes[destination];
 
-            if(cro.hasExpired())
+            // if it has expired and is not a self-route (never expire it)
+            if(cro.hasExpired() && !cro.isSelfRoute())
             {
                 this.routes.remove(destination);
                 logger.warn("Expired route '", cro, "'");
