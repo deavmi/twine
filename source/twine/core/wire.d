@@ -7,11 +7,40 @@ module twine.core.wire;
 
 import msgpack;
 
+/** 
+ * Message type
+ */
 public enum MType
 {
+    /**
+     * An unknown type
+     *
+     * Used for developer
+     * safety as this would
+     * be the value for
+     * `MType.init` and hence
+     * implies you haven't
+     * set the `Message`'s
+     * type field
+     */
     UNKNOWN,
+
+    /**
+     * A route advertisement
+     * message
+     */
     ADV,
+    
+    /** 
+     * Unicast data
+     * packet
+     */
     DATA,
+
+    /** 
+     * An ARP request
+     * or reply
+     */
     ARP
 }
 
