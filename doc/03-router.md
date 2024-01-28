@@ -273,7 +273,7 @@ logger.info("Advertising to ", selected.length, " many links");
 
 As we can see above we sweep the routing table firstly by a call to `routeSweep()`.
 
-We also see how we are eneumerating all `Link`(s) which are attached to the router
+We also see how we are enumerating all `Link`(s) which are attached to the router
 (via its `LinkManager` (returned by `getLinkMan()`)). We would like to advertise all
 the routes in our table over all of these links.
 
@@ -307,7 +307,7 @@ foreach(Route route; getRoutes())
 The advertising of routes works as follows. Given a route $r_i$ in our routing table,
 we construct a new route, $r_i_{out}$ of which has all the attributes of the current
 route's ($r_i$'s) attributes **however** we update the `via` (or _gateway_) of $r_i_{out}$
-to be that of our public key. Only _then_ do we send out the advertisment over the `Link`
+to be that of our public key. Only _then_ do we send out the advertisement over the `Link`
 in the form of a broadcast.
 
 ### Handling of ingress traffic
