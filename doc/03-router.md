@@ -271,7 +271,41 @@ Link[] selected = getLinkMan().getLinks();
 logger.info("Advertising to ", selected.length, " many links");
 ```
 
-As we can see above we sweep the routing table firstly by a call to `routeSweep()`.
+---
+
+As we can see above we sweep the routing table firstly by a call to `routeSweep()`,
+this is implemented as follows:
+
+```{.numberLines .d}
+this.routesLock.lock();
+
+scope(exit)
+{
+    this.routesLock.unlock();
+}
+
+foreach(string destination; this.routes.keys())
+{
+    Route cro = this.routes[destination];
+
+    // if it has expired and is not a self-route (never expire it)
+    if(cro.hasExpired() && !cro.isSelfRoute())
+    {
+        this.routes.remove(destination);
+        logger.warn("Expired route '", cro, "'");
+    }
+}
+```
+
+It is relatively simple, lock the table check all which have expired, and
+if they have then remove them from the table. Finalizing by unlocking the
+table's lock.
+
+**Note**: We check `!cro.isSelfRoute()` because we don't want to expire our
+self-route, else if we do it we will cease to advertise our prescenece
+to neighboring routers after the initial sweep after starting the router.
+
+---
 
 We also see how we are enumerating all `Link`(s) which are attached to the router
 (via its `LinkManager` (returned by `getLinkMan()`)). We would like to advertise all
