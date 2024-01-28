@@ -46,29 +46,49 @@ public enum MType
 
 public struct Message
 {
+    /** 
+     * The type of message (how to
+     * interpret the payload)
+     */
     private MType mType;
+
+    /** 
+     * The payload itself
+     */
     private byte[] payload;
 
+    /** 
+     * Encodes the given `Message`
+     * into a byte stream
+     *
+     * Params:
+     *   mIn = the message to
+     * encode
+     * Returns: encoded bytes
+     */
     public static byte[] encode(Message mIn)
     {
         return cast(byte[])pack(mIn);
     }
 
+    /** 
+     * Encodes this `Message`
+     *
+     * Returns: encoded bytes
+     */
     public byte[] encode()
     {
         return encode(this);
     }
 
-    // fixme, if the dataIn is not even in msgpack form it fails WITHOUT exception  (dangerous, submit to github as an issue)
     public static bool decode(byte[] dataIn, ref Message decoded)
     {
-        // todo, decode properly
         try
         {
             decoded = unpack!(Message)(cast(ubyte[])dataIn);
             return true;
         }
-        catch(UnpackException u)
+        catch(MessagePackException u)
         {
             return false;
         }
