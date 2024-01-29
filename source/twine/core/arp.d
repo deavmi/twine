@@ -464,8 +464,6 @@ version(unittest)
     import twine.links.link;
     import std.stdio;
     import core.thread : Thread;
-    import core.sync.mutex : Mutex;
-    import core.sync.condition : Condition;
     import std.conv : to;
 }
 
