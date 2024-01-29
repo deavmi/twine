@@ -768,7 +768,6 @@ public class Router : Receiver
 version(unittest)
 {
     import std.stdio;
-    import core.thread : Thread;
 
     import std.conv : to;
 
