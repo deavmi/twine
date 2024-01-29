@@ -81,6 +81,16 @@ public struct Message
         return encode(this);
     }
 
+    /** 
+     * Decoes the given data into the provided
+     * `Message` variable
+     *
+     * Params:
+     *   dataIn = the data to decode
+     *   decoded = the decoded `Message`
+     * Returns: `true` if the decode succeeded,
+     * otherwise `false`
+     */
     public static bool decode(byte[] dataIn, ref Message decoded)
     {
         try
@@ -189,7 +199,7 @@ public struct Data
         return this.src;
     }
 
-    public string getDst()
+    public string getDst() const
     {
         return this.dst;
     }
